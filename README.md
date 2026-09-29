@@ -6,9 +6,10 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 
 ## What works
 
-- Warm Material 3 interface with a Home–Scan–History floating dock
+- Sky-blue Material 3 interface with a minimal Home–Scan–History floating dock
 - Bundled Space Grotesk and JetBrains Mono typography
 - Original ChessMind hero illustration and animated analysis state
+- Custom launcher artwork sourced from `public/logo.png`
 - Short first-run onboarding and edge-to-edge phone layout
 - CameraX scanner overlay plus gallery import and image rotation/review
 - Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls

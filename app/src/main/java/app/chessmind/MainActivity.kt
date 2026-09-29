@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -82,11 +83,12 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Edit
@@ -157,17 +159,18 @@ import app.chessmind.domain.model.Square
 import app.chessmind.domain.model.ChessRules
 import app.chessmind.domain.model.Move
 
-private val Ink = Color(0xFF211A17)
-private val SurfaceDark = Color(0xFF302824)
-private val SurfaceLight = Color(0xFF443A34)
-private val Accent = Color(0xFF9DB58C)
-private val Sunny = Color(0xFFF0C66B)
-private val Coral = Color(0xFFE58E72)
-private val Purple = Color(0xFF9A899E)
-private val Muted = Color(0xFFC5B9AE)
-private val BoardLight = Color(0xFFF0E3CB)
-private val BoardDark = Color(0xFF8FA17C)
-private val Espresso = Color(0xFF3B2A22)
+private val Ink = Color(0xFF102E4F)
+private val SkyBackground = Color(0xFFE8F4FF)
+private val SurfaceDark = Color(0xFFF8FBFF)
+private val SurfaceLight = Color(0xFFFFFFFF)
+private val Accent = Color(0xFF356DFF)
+private val Sunny = Color(0xFFFFC85A)
+private val Coral = Color(0xFFFF8D78)
+private val Purple = Color(0xFF9275E8)
+private val Muted = Color(0xFF6F87A3)
+private val BoardLight = Color(0xFFF4D9BC)
+private val BoardDark = Color(0xFFC88F6A)
+private val Espresso = Ink
 private val SpaceGrotesk = FontFamily(Font(R.font.space_grotesk))
 private val JetBrainsMono = FontFamily(Font(R.font.jetbrains_mono))
 
@@ -176,26 +179,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         WindowInsetsControllerCompat(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
         }
-        setContent { ChessMindTheme { CompositionLocalProvider(LocalContentColor provides Color.White) { ChessMindApp() } } }
+        setContent { ChessMindTheme { CompositionLocalProvider(LocalContentColor provides Ink) { ChessMindApp() } } }
     }
 }
 
 @Composable
 private fun ChessMindTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = lightColorScheme(
             primary = Accent,
-            background = Ink,
+            background = SkyBackground,
             surface = SurfaceDark,
-            onPrimary = Ink,
+            onPrimary = Color.White,
             secondary = Coral,
             tertiary = Sunny,
             surfaceVariant = SurfaceLight,
-            onBackground = Color(0xFFFFF8EF),
-            onSurface = Color(0xFFFFF8EF),
+            onBackground = Ink,
+            onSurface = Ink,
         ),
         typography = androidx.compose.material3.Typography(
             displaySmall = TextStyle(fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold, fontSize = 40.sp, lineHeight = 43.sp),
@@ -226,10 +229,10 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
             }
         )
     }
-    Box(Modifier.fillMaxSize().background(Ink)) {
+    Box(Modifier.fillMaxSize().background(SkyBackground)) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Coral.copy(.07f), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
-            drawCircle(Accent.copy(.05f), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
+            drawCircle(Color.White.copy(.56f), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
+            drawCircle(Accent.copy(.045f), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
         }
         Scaffold(
             containerColor = Color.Transparent,
@@ -315,9 +318,7 @@ private fun HomeScreen(vm: MainViewModel) {
                     UserAvatar(vm.state.profile.imageUri, vm.state.profile.name, Modifier.size(48.dp))
                 }
                 Text("CHESSMIND", style = MaterialTheme.typography.labelMedium, color = Muted)
-                FilledIconButton(onClick = { vm.navigate(AppScreen.SETTINGS) }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceLight, contentColor = Color.White)) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-                }
+                IconButton(onClick = { vm.navigate(AppScreen.SETTINGS) }) { Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Ink) }
             }
         }
         item {
@@ -330,24 +331,26 @@ private fun HomeScreen(vm: MainViewModel) {
             Card(
                 onClick = { vm.navigate(AppScreen.SCANNER) },
                 shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1D7B5), contentColor = Espresso),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF78A6FF), contentColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             ) {
-                Box(Modifier.fillMaxWidth().height(300.dp)) {
+                Box(Modifier.fillMaxWidth().height(290.dp)) {
                     Image(
                         painter = painterResource(R.drawable.chess_hero), contentDescription = null,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth().height(220.dp).align(Alignment.TopCenter).padding(horizontal = 2.dp),
+                        modifier = Modifier.width(275.dp).height(250.dp).align(Alignment.CenterEnd).offset(x = 38.dp, y = 4.dp),
                     )
-                    Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
-                        Text("SCAN & SOLVE", style = MaterialTheme.typography.labelMedium, color = Espresso.copy(.65f))
-                        Text("Turn a board into\na clear plan.", style = MaterialTheme.typography.headlineMedium, color = Espresso)
+                    Column(Modifier.align(Alignment.TopStart).padding(24.dp).width(190.dp)) {
+                        Text("SOLVE A POSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                        Text("Scan or choose a chess board", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(.78f), modifier = Modifier.padding(top = 8.dp))
                     }
-                    FilledIconButton(
+                    Button(
                         onClick = { vm.navigate(AppScreen.SCANNER) },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(22.dp).size(54.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Espresso, contentColor = Color(0xFFFFF8EF)),
-                    ) { Icon(Icons.Rounded.CameraAlt, contentDescription = "Scan board") }
+                        modifier = Modifier.align(Alignment.BottomStart).padding(22.dp).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Accent), shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Icon(Icons.Rounded.CameraAlt, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Scan board"); Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Rounded.ArrowForward, null)
+                    }
                 }
             }
         }
@@ -356,8 +359,8 @@ private fun HomeScreen(vm: MainViewModel) {
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HomeActionCard("Scan board", "Camera or photo", Icons.Rounded.CenterFocusStrong, Coral, Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
-                HomeActionCard("Set position", "Build it yourself", Icons.Rounded.Edit, Accent, Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Scan board", "Camera or photo", Icons.Rounded.CenterFocusStrong, Accent, Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
+                HomeActionCard("Set position", "Build it yourself", Icons.Rounded.Edit, Coral, Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
             }
         }
         if (vm.state.history.isNotEmpty()) item {
@@ -366,9 +369,7 @@ private fun HomeScreen(vm: MainViewModel) {
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark),
             ) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(48.dp).clip(CircleShape).background(Sunny), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.History, contentDescription = null, tint = Espresso)
-                    }
+                    Icon(Icons.Rounded.History, contentDescription = null, tint = Accent, modifier = Modifier.size(30.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Continue your last analysis", style = MaterialTheme.typography.titleMedium)
@@ -383,10 +384,10 @@ private fun HomeScreen(vm: MainViewModel) {
 
 @Composable
 private fun HomeActionCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(144.dp), shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = color, contentColor = Espresso)) {
+    Card(onClick = onClick, modifier = modifier.height(140.dp), shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = SurfaceLight, contentColor = Ink), elevation = CardDefaults.cardElevation(1.dp)) {
         Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp))
-            Column { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Espresso.copy(.66f)) }
+            Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp), tint = color)
+            Column { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Muted) }
         }
     }
 }
@@ -417,7 +418,7 @@ private fun ProfileScreen(vm: MainViewModel) {
         Spacer(Modifier.height(22.dp))
         Box(Modifier.align(Alignment.CenterHorizontally)) {
             UserAvatar(imageUri, name, Modifier.size(132.dp))
-            FilledIconButton(onClick = { picker.launch(arrayOf("image/*")) }, modifier = Modifier.align(Alignment.BottomEnd), colors = IconButtonDefaults.filledIconButtonColors(containerColor = Coral, contentColor = Espresso)) {
+            IconButton(onClick = { picker.launch(arrayOf("image/*")) }, modifier = Modifier.align(Alignment.BottomEnd).background(SurfaceLight, RoundedCornerShape(14.dp))) {
                 Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = "Choose profile photo")
             }
         }
@@ -572,7 +573,7 @@ private fun SetupScreen(vm: MainViewModel) {
                     .background(Coral.copy(.14f)).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(message, color = Color.White, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                Text(message, color = Ink, fontSize = 11.sp, modifier = Modifier.weight(1f))
                 Text("×", color = Coral, fontSize = 20.sp, modifier = Modifier.clickable(onClick = vm::dismissFenError))
             }
         }
@@ -664,7 +665,7 @@ private fun PaletteCell(text: String, active: Boolean, onClick: () -> Unit) {
             .background(if (active) Accent else SurfaceLight)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(text, fontSize = 27.sp, color = if (active) Ink else Color.White) }
+    ) { Text(text, fontSize = 27.sp, color = Ink) }
 }
 
 @Composable
@@ -826,23 +827,15 @@ private fun LevelScreen(vm: MainViewModel) {
 
 @Composable
 private fun LevelCard(level: AnalysisLevel, onClick: () -> Unit) {
-    val cardColor = when (level) {
-        AnalysisLevel.BEGINNER -> Color(0xFFC5D4B8)
-        AnalysisLevel.INTERMEDIATE -> Color(0xFFE8C9AD)
-        AnalysisLevel.MASTER -> Color(0xFFD9B5A8)
-        AnalysisLevel.GOD -> Color(0xFFEBCB79)
-    }
-    Card(onClick = onClick, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(cardColor, Espresso), modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(SurfaceLight, Ink), elevation = CardDefaults.cardElevation(1.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(46.dp).clip(CircleShape).background(Espresso.copy(.10f)), contentAlignment = Alignment.Center) {
-                Text(when (level) { AnalysisLevel.BEGINNER -> "1"; AnalysisLevel.INTERMEDIATE -> "2"; AnalysisLevel.MASTER -> "3"; AnalysisLevel.GOD -> "∞" }, color = Espresso, style = MaterialTheme.typography.titleMedium)
-            }
+            Text(when (level) { AnalysisLevel.BEGINNER -> "01"; AnalysisLevel.INTERMEDIATE -> "02"; AnalysisLevel.MASTER -> "03"; AnalysisLevel.GOD -> "∞" }, color = Accent, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(36.dp))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(level.title, color = Espresso, style = MaterialTheme.typography.titleMedium)
-                Text(level.subtitle, color = Espresso.copy(.66f), style = MaterialTheme.typography.bodyMedium)
+                Text(level.title, color = Ink, style = MaterialTheme.typography.titleMedium)
+                Text(level.subtitle, color = Muted, style = MaterialTheme.typography.bodyMedium)
             }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Espresso)
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
         }
     }
 }
@@ -942,7 +935,7 @@ private fun AnalysisScreen(vm: MainViewModel) {
                 Spacer(Modifier.height(10.dp))
                 Text(result.explanation, style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(10.dp))
-                result.reasons.forEach { Text("•  $it", color = Color.White.copy(.78f), fontSize = 14.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+                result.reasons.forEach { Text("•  $it", color = Ink.copy(.78f), fontSize = 14.sp, modifier = Modifier.padding(vertical = 2.dp)) }
             }
         }
         item {
@@ -979,7 +972,7 @@ private fun AnalyzingScreen(level: AnalysisLevel, onStop: () -> Unit) {
     )
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(260.dp).clip(RoundedCornerShape(54.dp)).background(Color(0xFFF1D7B5)), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(260.dp).clip(RoundedCornerShape(54.dp)).background(Color(0xFFBBD9FF)), contentAlignment = Alignment.Center) {
                 Image(painterResource(R.drawable.chess_hero), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(10.dp).scale(pulse))
             }
             Text("Finding the clearest line…", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 28.dp))
@@ -1139,8 +1132,8 @@ private fun SettingsScreen(vm: MainViewModel) {
                 .getOrNull()?.let(vm::importData)
         }
     }
-    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Settings", fontSize = 31.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 12.dp)) }
+    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { ScreenHeader("Settings", onBack = { vm.navigate(AppScreen.HOME) }) }
         item {
             GlassCard {
                 Text("APPEARANCE", color = Accent, fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
@@ -1183,11 +1176,11 @@ private fun SettingsScreen(vm: MainViewModel) {
                             putExtra(Intent.EXTRA_SUBJECT, "ChessMind backup")
                         }
                         context.startActivity(Intent.createChooser(intent, "Export ChessMind data"))
-                    }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(SurfaceLight, Color.White),
+                    }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(SurfaceLight, Ink),
                 ) { Text("Export data") }
                 Button(
                     onClick = { backupPicker.launch("application/json") }, modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(Accent, Ink),
+                    shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(Accent, Color.White),
                 ) { Text("Import data") }
             }
             vm.state.fenError?.let { error -> Text(error, color = Coral, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)) }
@@ -1236,13 +1229,13 @@ private fun FloatingDock(active: AppScreen, onNavigate: (AppScreen) -> Unit, mod
                 Triple(AppScreen.HISTORY, "History", Icons.Rounded.History),
             ).forEach { (screen, label, icon) ->
                 val selected = active == screen
-                FilledIconButton(
-                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onNavigate(screen) }, modifier = Modifier.size(if (screen == AppScreen.SCANNER) 54.dp else 48.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (screen == AppScreen.SCANNER) Sunny else if (selected) Accent else Color.Transparent,
-                        contentColor = Espresso.takeIf { screen == AppScreen.SCANNER || selected } ?: Color.White.copy(.82f),
-                    ),
-                ) { Icon(icon, contentDescription = label, modifier = Modifier.size(if (screen == AppScreen.SCANNER) 27.dp else 24.dp)) }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onNavigate(screen) },
+                        modifier = Modifier.size(if (screen == AppScreen.SCANNER) 50.dp else 46.dp),
+                    ) { Icon(icon, contentDescription = label, tint = if (selected || screen == AppScreen.SCANNER) Accent else Muted, modifier = Modifier.size(if (screen == AppScreen.SCANNER) 29.dp else 25.dp)) }
+                    Box(Modifier.width(if (selected) 18.dp else 4.dp).height(3.dp).clip(CircleShape).background(if (selected) Accent else Color.Transparent))
+                }
             }
         }
     }
