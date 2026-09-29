@@ -32,4 +32,15 @@ class FenTest {
         val moves = ChessRules.legalMoves(position)
         assertTrue(moves.none { it.from.algebraic == "e2" && it.to.file != 4 })
     }
+
+    @Test fun `legal moves never capture the opposing king`() {
+        val position = Fen.parse("4k3/4Q3/8/8/8/8/8/4K3 w - - 0 1").getOrThrow()
+        assertTrue(ChessRules.legalMoves(position).none { it.to.algebraic == "e8" })
+    }
+
+    @Test fun `imports a basic PGN game`() {
+        val game = Pgn.parse("[Event \"Test\"]\n\n1. e4 e5 2. Nf3 Nc6 *").getOrThrow()
+        assertEquals(4, game.moves.size)
+        assertEquals(Side.WHITE, game.positions.last().sideToMove)
+    }
 }

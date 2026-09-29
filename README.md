@@ -1,70 +1,66 @@
 # ChessMind
 
-ChessMind is a privacy-first Android chess position solver and learning companion. It is designed to answer both **“What should I play?”** and **“Why?”** without requiring an account, server, or internet connection.
+ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Release status:** v1.01 introduces the redesigned playful bento interface and three-icon floating dock. Manual position setup, FEN handling, and local legal-move analysis are functional. Camera recognition and packaged Stockfish analysis remain on the roadmap and are not simulated or misrepresented.
+> **Current version: 1.0.2.** The app is usable end-to-end for manual positions, FEN/PGN imports, local analysis, practice, history, and saved positions. Camera/gallery capture is included. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
 
-## Features
+## What works
 
-- Native Android interface built with Kotlin and Jetpack Compose
-- Interactive, reusable chessboard with tap-to-move editing
-- Piece palette, board flipping, turn selection, clear, and reset controls
-- Strict FEN import, export, and validation
-- Local legal move generation with check filtering
-- Castling, en passant, and promotion support
-- Beginner, Intermediate, Master, and God Mode presentation presets
-- Engine-neutral analysis contract ready for Stockfish
-- Offline-first and account-free architecture
-- Responsive dark visual system for phones and tablets
-
-## Screens
-
-The current vertical slice includes:
-
-1. Home and privacy status
-2. Manual position setup
-3. Analysis-level selection
-4. Local preview analysis
-5. Practice, Saved, and Settings foundations
+- Premium Jetpack Compose interface with a three-icon floating dock
+- Short first-run onboarding and edge-to-edge phone layout
+- CameraX scanner overlay plus gallery import and image rotation/review
+- Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls
+- Strict FEN validation/import/export and common PGN import
+- Complete legal move generation, including check filtering, castling, en passant, and promotion
+- Four analysis presets: Beginner, Intermediate, Master, and God mode
+- Packaged Stockfish 19 UCI analysis on ARM devices, with a cancellable built-in engine fallback
+- MultiPV candidate moves, evaluation, depth, principal variation, human-readable reasons, and move visualization
+- Offline practice positions, accuracy, streak, and best-streak tracking
+- Local analysis history, saved positions, reopen/delete/clear actions, and JSON backup/restore
+- Functional settings for animation, coordinates, legal hints, haptics, and high-contrast board colors
+- No account, analytics SDK, cloud engine, or image upload
 
 ## Project structure
 
 ```text
-ChessMind/
-├── app/
-│   ├── src/main/java/app/chessmind/
-│   │   ├── domain/engine/    # Engine API and analysis models
-│   │   ├── domain/model/     # Chess model, FEN, and legal rules
-│   │   ├── MainActivity.kt   # Compose presentation
-│   │   └── MainViewModel.kt  # UI state and actions
-│   └── src/test/             # Domain unit tests
-├── docs/
-│   └── BUILD_BRIEF.md        # Product, architecture, and delivery specification
-├── gradle/wrapper/           # Reproducible Gradle tooling
-└── build.gradle.kts
+app/src/main/
+├── assets/licenses/                 # Third-party license text
+├── java/app/chessmind/
+│   ├── data/                        # Local persistence
+│   ├── data/engine/                 # Stockfish process adapter and fallback
+│   ├── domain/engine/               # Engine contract, models, local search
+│   ├── domain/model/                # Position, rules, FEN, PGN
+│   ├── MainActivity.kt              # Compose screens and components
+│   └── MainViewModel.kt             # App state and workflows
+└── jniLibs/                         # Locally fetched Stockfish binaries (ignored)
+scripts/fetch-stockfish.ps1          # Reproducible Stockfish fetch
+docs/BUILD_BRIEF.md                  # Product and architecture brief
 ```
 
 ## Requirements
 
-- Android Studio with JDK 17
+- JDK 17
 - Android SDK 36
-- Android 8.0 (API 26) or newer device/emulator
+- Android 8.0 / API 26 or newer
+- GitHub CLI (`gh`) only when fetching the official Stockfish binaries
 
-## Build and test
+## Build
 
-From PowerShell:
-
-```powershell
-.\gradlew.bat test assembleDebug
-```
-
-Build a release APK:
+Fetch the official Android ARM binaries used by release builds:
 
 ```powershell
-.\gradlew.bat clean test assembleRelease
+.\scripts\fetch-stockfish.ps1
 ```
 
-Without local signing properties, release builds fall back to Android’s debug signing key for installable development artifacts. Production signing can be configured using an ignored `keystore.properties` file:
+Then verify and build:
+
+```powershell
+.\gradlew.bat test lint assembleDebug assembleRelease
+```
+
+Outputs are written under `app/build/outputs/apk/`. If the native binaries are absent, the APK still builds and uses ChessMind's smaller local search engine.
+
+Release builds use R8/resource shrinking. Without a local signing configuration they fall back to the Android debug key, which is appropriate only for development artifacts. Production signing uses an ignored `keystore.properties` file:
 
 ```properties
 storeFile=C:/secure/chessmind-release.jks
@@ -73,29 +69,18 @@ keyAlias=chessmind
 keyPassword=your-key-password
 ```
 
-## Quality checks
+## Stockfish and licensing
 
-The domain test suite covers FEN round trips, validation failures, en-passant state, legal starting moves, and pinned-piece safety. All releases should pass:
-
-```powershell
-.\gradlew.bat test lint assembleRelease
-```
-
-## Roadmap
-
-- Stockfish UCI integration with cancellable background analysis
-- CameraX capture and gallery import
-- On-device board and piece recognition with confidence review
-- Room-backed history, saved positions, and analysis cache
-- Offline tactics packs, daily practice, and learning statistics
-- PGN import/export, accessibility audit, and baseline profiles
-
-The detailed technical and product plan is available in [docs/BUILD_BRIEF.md](docs/BUILD_BRIEF.md).
+ChessMind's engine layer is implementation-independent. On supported ARM devices it launches the packaged official [Stockfish 19](https://github.com/official-stockfish/Stockfish/releases/tag/sf_19) binary through UCI; unsupported ABIs transparently use the built-in fallback engine. Stockfish is licensed under GPLv3, whose text is packaged at `app/src/main/assets/licenses/stockfish-gpl-3.txt`. The exact upstream source is available from the linked release/tag. Preserve the license and corresponding-source availability when redistributing an APK containing Stockfish.
 
 ## Privacy
 
-ChessMind does not require an account or network connection. Core positions and future scan data are designed to remain on-device. Photos will be discarded by default unless the user explicitly chooses to save them.
+Core features run offline. Positions, statistics, and history use app-private local storage. Captured images are placed in the app cache and are not uploaded. Camera access is requested only when opening the scanner; no broad storage permission is requested.
+
+## Known limitation
+
+Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 1.0.2 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please keep domain logic independent of Android UI and add tests for chess-rule changes.
+Keep Android presentation, chess rules, persistence, engine, and future vision code independent. Add unit tests for rule or notation changes, and run `test lint assembleRelease` before publishing.

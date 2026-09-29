@@ -1,5 +1,7 @@
 package app.chessmind.domain.model
 
+import kotlin.math.abs
+
 object Fen {
     fun parse(input: String): Result<Position> = runCatching {
         val fields = input.trim().split(Regex("\\s+"))
@@ -33,6 +35,18 @@ object Fen {
         }
         require(board.count { it == Piece(PieceType.KING, Side.BLACK) } == 1) {
             "Black must have exactly one king."
+        }
+        val whiteKing = board.indexOf(Piece(PieceType.KING, Side.WHITE))
+        val blackKing = board.indexOf(Piece(PieceType.KING, Side.BLACK))
+        require(abs(whiteKing % 8 - blackKing % 8) > 1 || abs(whiteKing / 8 - blackKing / 8) > 1) {
+            "The kings cannot stand on adjacent squares."
+        }
+        Side.entries.forEach { side ->
+            require(board.count { it?.side == side } <= 16) { "${side.name.lowercase().replaceFirstChar { it.uppercase() }} has more than 16 pieces." }
+            require(board.count { it == Piece(PieceType.PAWN, side) } <= 8) { "${side.name.lowercase().replaceFirstChar { it.uppercase() }} has more than 8 pawns." }
+        }
+        require(board.indices.none { index -> board[index]?.type == PieceType.PAWN && index / 8 in setOf(0, 7) }) {
+            "Pawns cannot remain on the first or eighth rank."
         }
 
         val turn = when (fields[1]) {

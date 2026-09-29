@@ -95,7 +95,8 @@ object ChessRules {
         }
         for (df in listOf(-1, 1)) {
             val to = Square.of(from.file + df, from.rank + direction) ?: continue
-            if (position[to]?.side == side.opposite() || to == position.enPassant) addPromotions(from, to, promotionRank)
+            val target = position[to]
+            if ((target?.side == side.opposite() && target.type != PieceType.KING) || to == position.enPassant) addPromotions(from, to, promotionRank)
         }
     }
 
@@ -107,7 +108,8 @@ object ChessRules {
     private fun MutableList<Move>.addLeaps(position: Position, from: Square, side: Side, offsets: List<Pair<Int, Int>>) {
         offsets.forEach { (df, dr) ->
             val to = Square.of(from.file + df, from.rank + dr) ?: return@forEach
-            if (position[to]?.side != side) add(Move(from, to))
+            val target = position[to]
+            if (target == null || (target.side != side && target.type != PieceType.KING)) add(Move(from, to))
         }
     }
 
@@ -118,7 +120,7 @@ object ChessRules {
                 val to = Square.of(from.file + df * distance, from.rank + dr * distance) ?: break
                 val target = position[to]
                 if (target == null) add(Move(from, to)) else {
-                    if (target.side != side) add(Move(from, to))
+                    if (target.side != side && target.type != PieceType.KING) add(Move(from, to))
                     break
                 }
                 distance++

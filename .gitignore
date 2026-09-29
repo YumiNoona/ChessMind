@@ -50,3 +50,8 @@ lint-results*
 *.log
 tmp/
 temp/
+build-artifacts/
+
+# Official Stockfish binaries are fetched for release builds (too large for Git)
+app/src/main/jniLibs/arm64-v8a/libstockfish.so
+app/src/main/jniLibs/armeabi-v7a/libstockfish.so
