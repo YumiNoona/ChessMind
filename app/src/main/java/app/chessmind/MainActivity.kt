@@ -118,6 +118,9 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -164,6 +167,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
 import java.io.File
+import kotlinx.coroutines.delay
 import app.chessmind.domain.engine.AnalysisLevel
 import app.chessmind.domain.model.Fen
 import app.chessmind.domain.model.Piece
@@ -411,9 +415,6 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
         item {
-            Text("Choose a starting point", style = MaterialTheme.typography.titleMedium)
-        }
-        item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Import image", "Gallery or files", R.drawable.art_import_image, Color(0xFFFF8D78), Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
                 HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
@@ -444,7 +445,7 @@ private fun HomeActionCard(title: String, subtitle: String, art: Int, color: Col
         Box(Modifier.fillMaxSize()) {
             Image(
                 painterResource(art), null, contentScale = ContentScale.Fit,
-                modifier = Modifier.width(205.dp).height(138.dp).align(Alignment.TopCenter).offset(y = (-17).dp),
+                modifier = Modifier.width(220.dp).height(150.dp).align(Alignment.TopCenter).offset(x = 13.dp, y = (-28).dp),
             )
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
@@ -657,10 +658,7 @@ private fun ImageReviewScreen(vm: MainViewModel) {
 @Composable
 private fun SetupScreen(vm: MainViewModel) {
     val state = vm.state
-    var showFen by remember { mutableStateOf(false) }
-    var showPgn by remember { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding()) {
         ScreenHeader("Set up position", onBack = { vm.navigate(AppScreen.HOME) })
         state.fenError?.let { message ->
@@ -673,6 +671,8 @@ private fun SetupScreen(vm: MainViewModel) {
                 Text("×", color = Coral, fontSize = 20.sp, modifier = Modifier.clickable(onClick = vm::dismissFenError))
             }
         }
+        BoardLookPicker(state.settings, vm::updateSettings)
+        Spacer(Modifier.height(10.dp))
         ChessBoard(
             position = state.position,
             flipped = state.flipped,
@@ -683,6 +683,8 @@ private fun SetupScreen(vm: MainViewModel) {
             highContrastBoard = state.settings.highContrastBoard,
             boardDepth = state.settings.boardDepth,
             pieceDepth = state.settings.pieceDepth,
+            boardTheme = state.settings.boardTheme,
+            pieceStyle = state.settings.pieceStyle,
             haptics = state.settings.haptics,
         )
         Spacer(Modifier.height(12.dp))
@@ -701,16 +703,6 @@ private fun SetupScreen(vm: MainViewModel) {
         TextButton(onClick = { showDetails = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Castling ${state.position.castling.asFen()}  ·  En passant ${state.position.enPassant?.algebraic ?: "-"}", color = Muted, fontSize = 12.sp)
         }
-        PiecePalette(state.palettePiece, vm::setPalette)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { showFen = true }, modifier = Modifier.weight(1f)) { Text("Load FEN") }
-            TextButton(onClick = { showPgn = true }, modifier = Modifier.weight(1f)) { Text("Load PGN") }
-            TextButton(onClick = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("ChessMind FEN", Fen.encode(state.position)))
-            }, modifier = Modifier.weight(1f)) { Text("Copy FEN") }
-        }
         Spacer(Modifier.height(8.dp))
         PlayfulActionButton(
             label = "Analyze position", icon = Icons.Rounded.CenterFocusStrong,
@@ -719,16 +711,6 @@ private fun SetupScreen(vm: MainViewModel) {
         )
         Spacer(Modifier.height(14.dp))
     }
-    if (showFen) FenDialog(
-        error = state.fenError,
-        onDismiss = { showFen = false; vm.dismissFenError() },
-        onLoad = { if (vm.loadFen(it)) showFen = false },
-    )
-    if (showPgn) PgnDialog(
-        error = state.fenError,
-        onDismiss = { showPgn = false; vm.dismissFenError() },
-        onLoad = { if (vm.loadPgn(it)) showPgn = false },
-    )
     if (showDetails) PositionDetailsDialog(
         castling = state.position.castling.asFen(),
         enPassant = state.position.enPassant?.algebraic ?: "-",
@@ -783,10 +765,18 @@ private fun ChessBoard(
     highContrastBoard: Boolean = false,
     boardDepth: Boolean = false,
     pieceDepth: Boolean = true,
+    boardTheme: Int = 0,
+    pieceStyle: Int = 0,
 ) {
     val haptic = LocalHapticFeedback.current
-    val lightColor = if (highContrastBoard) Color(0xFFF4F0DF) else BoardLight
-    val darkColor = if (highContrastBoard) Color(0xFF6E8060) else BoardDark
+    val palette = when (boardTheme.coerceIn(0, 3)) {
+        1 -> Color(0xFFEEEED2) to Color(0xFF769656)
+        2 -> Color(0xFFD8E8F4) to Color(0xFF4D7EA8)
+        3 -> Color(0xFFE6E6E6) to Color(0xFF5D6470)
+        else -> BoardLight to BoardDark
+    }
+    val lightColor = if (highContrastBoard) Color(0xFFF4F0DF) else palette.first
+    val darkColor = if (highContrastBoard) Color(0xFF6E8060) else palette.second
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f)
             .graphicsLayer { if (boardDepth) { rotationX = 2.5f; cameraDistance = 18f * density } }
@@ -829,7 +819,7 @@ private fun ChessBoard(
                             contentAlignment = Alignment.Center,
                         ) {
                             position[square]?.let { piece ->
-                                ChessPiece(piece, pieceDepth, Modifier.fillMaxSize().padding(4.dp))
+                                ChessPiece(piece, pieceDepth, Modifier.fillMaxSize().padding(4.dp), pieceStyle)
                             }
                             if (isHint) Box(Modifier.size(if (position[square] == null) 10.dp else 36.dp).clip(CircleShape).background(Espresso.copy(if (position[square] == null) .48f else .08f)).then(if (position[square] == null) Modifier else Modifier.border(3.dp, Espresso.copy(.52f), CircleShape)))
                             if (showCoordinates && displayFile == 0) Text(
@@ -849,15 +839,23 @@ private fun ChessBoard(
 }
 
 @Composable
-private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier) {
+private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier, style: Int = 0) {
     val light = piece.side == Side.WHITE
-    val glyph = Piece(piece.type, Side.BLACK).symbol
-    val foreground = if (light) Color(0xFFFFF3DF) else Color(0xFF172331)
-    val edge = if (light) Color(0xFF9C6B49) else Color(0xFF5D7188)
+    val glyph = if (style == 2) piece.symbol else Piece(piece.type, Side.BLACK).symbol
+    val foreground = when (style) {
+        1 -> if (light) Color(0xFFFFFCF2) else Color(0xFF222222)
+        2 -> if (light) Color(0xFFFFF8E8) else Color(0xFF15263A)
+        else -> if (light) Color(0xFFFFF3DF) else Color(0xFF172331)
+    }
+    val edge = when (style) {
+        1 -> if (light) Color(0xFFB17A45) else Color(0xFF5D402A)
+        2 -> if (light) Color(0xFF6D4934) else Color(0xFFD5E5F5)
+        else -> if (light) Color(0xFF9C6B49) else Color(0xFF5D7188)
+    }
     val shadow = if (light) Color(0xFF6D4934) else Color.Black
     Box(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }, contentAlignment = Alignment.Center) {
         if (depth) Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = shadow.copy(.62f), modifier = Modifier.offset(y = 2.dp))
-        listOf((-1).dp to 0.dp, 1.dp to 0.dp, 0.dp to (-1).dp, 0.dp to 1.dp).forEach { (x, y) ->
+        if (style != 2) listOf((-1).dp to 0.dp, 1.dp to 0.dp, 0.dp to (-1).dp, 0.dp to 1.dp).forEach { (x, y) ->
             Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = edge.copy(if (light) .78f else .42f), modifier = Modifier.offset(x, y))
         }
         Text(
@@ -865,6 +863,40 @@ private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifi
             modifier = Modifier.offset(y = (-1).dp),
             style = TextStyle(shadow = Shadow(if (light) Color.White.copy(.82f) else Color.White.copy(.2f), Offset(-1f, -1f), if (depth) 1.8f else .4f)),
         )
+    }
+}
+
+@Composable
+private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate: (app.chessmind.data.UserSettings) -> Unit) {
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Palette, contentDescription = null, tint = Accent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(7.dp))
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                listOf(BoardLight to BoardDark, Color(0xFFEEEED2) to Color(0xFF769656), Color(0xFFD8E8F4) to Color(0xFF4D7EA8), Color(0xFFE6E6E6) to Color(0xFF5D6470)).forEachIndexed { index, colors ->
+                    Box(
+                        Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                            .border(if (settings.boardTheme == index) 2.dp else 0.dp, Accent, RoundedCornerShape(10.dp))
+                            .clickable { onUpdate(settings.copy(boardTheme = index)) },
+                    ) {
+                        Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(colors.first, colors.first, colors.second, colors.second))))
+                    }
+                }
+            }
+            Box(Modifier.width(1.dp).height(26.dp).background(Muted.copy(.2f)))
+            Spacer(Modifier.width(7.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                repeat(3) { index ->
+                    Box(
+                        Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                            .background(if (settings.pieceStyle == index) Accent.copy(.14f) else Color.Transparent)
+                            .border(if (settings.pieceStyle == index) 1.5.dp else 0.dp, Accent, RoundedCornerShape(11.dp))
+                            .clickable { onUpdate(settings.copy(pieceStyle = index)) },
+                        contentAlignment = Alignment.Center,
+                    ) { ChessPiece(Piece(PieceType.KNIGHT, if (index == 2) Side.WHITE else Side.BLACK), index != 2, Modifier.size(32.dp), index) }
+                }
+            }
+        }
     }
 }
 
@@ -943,10 +975,10 @@ private fun PositionDetailsDialog(
 
 @Composable
 private fun LevelScreen(vm: MainViewModel) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).navigationBarsPadding()) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding()) {
         ScreenHeader("Choose analysis", onBack = { vm.navigate(AppScreen.SETUP) })
         Text("Choose your\nkind of answer", style = MaterialTheme.typography.headlineLarge)
-        Text("From a simple idea to the deepest practical line.", style = MaterialTheme.typography.bodyLarge, color = Muted, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
+        Text("Pick the depth and teaching style that feels right.", style = MaterialTheme.typography.bodyLarge, color = Muted, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
         AnalysisLevel.entries.forEach { level ->
             LevelCard(level) { vm.chooseLevel(level) }
             Spacer(Modifier.height(10.dp))
@@ -956,17 +988,28 @@ private fun LevelScreen(vm: MainViewModel) {
 
 @Composable
 private fun LevelCard(level: AnalysisLevel, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(SurfaceLight, Ink), elevation = CardDefaults.cardElevation(1.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(when (level) { AnalysisLevel.BEGINNER -> "01"; AnalysisLevel.INTERMEDIATE -> "02"; AnalysisLevel.MASTER -> "03"; AnalysisLevel.GOD -> "∞" }, color = Accent, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(36.dp))
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(level.title, color = Ink, style = MaterialTheme.typography.titleMedium)
-                Text(level.subtitle, color = Muted, style = MaterialTheme.typography.bodyMedium)
+    val look = when (level) {
+        AnalysisLevel.BEGINNER -> Triple(Color(0xFF74DDB5), R.drawable.art_practice, "Clear & friendly")
+        AnalysisLevel.INTERMEDIATE -> Triple(Color(0xFFFFCF62), R.drawable.art_analysis, "Balanced coaching")
+        AnalysisLevel.MASTER -> Triple(Color(0xFFA98AF4), R.drawable.art_success, "Plans & candidates")
+        AnalysisLevel.GOD -> Triple(Color(0xFFFF8D78), R.drawable.art_setup_board, "Maximum engine depth")
+    }
+    Card(
+        onClick = onClick, shape = RoundedCornerShape(25.dp),
+        colors = CardDefaults.cardColors(look.first, if (level == AnalysisLevel.INTERMEDIATE) LightInk else Color.White),
+        elevation = CardDefaults.cardElevation(4.dp),
+        modifier = Modifier.fillMaxWidth().height(116.dp).shadow(10.dp, RoundedCornerShape(25.dp), spotColor = look.first.copy(.28f)),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            Image(painterResource(look.second), null, contentScale = ContentScale.Fit, modifier = Modifier.size(142.dp).align(Alignment.CenterEnd).offset(x = 17.dp, y = 2.dp))
+            Column(Modifier.align(Alignment.CenterStart).padding(start = 20.dp).width(205.dp)) {
+                Text(level.title, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+                Text(look.third, fontSize = 13.sp, color = LocalContentColor.current.copy(.78f), modifier = Modifier.padding(top = 4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(when (level) { AnalysisLevel.BEGINNER -> "QUICK"; AnalysisLevel.INTERMEDIATE -> "SMART"; AnalysisLevel.MASTER -> "DEEP"; AnalysisLevel.GOD -> "MAX" }, fontSize = 9.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(5.dp)); Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(16.dp))
+                }
             }
-            if (level == AnalysisLevel.BEGINNER) {
-                Image(painterResource(R.drawable.art_practice), null, contentScale = ContentScale.Crop, modifier = Modifier.size(68.dp).offset(x = 8.dp))
-            } else Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
         }
     }
 }
@@ -984,6 +1027,8 @@ private fun AnalysisScreen(vm: MainViewModel) {
     var selected by remember(result) { mutableStateOf<Square?>(null) }
     var pvIndex by remember(result) { mutableStateOf(0) }
     var followingLine by remember(result) { mutableStateOf(true) }
+    var autoPlay by remember(result) { mutableStateOf(false) }
+    var coachSide by remember(result) { mutableStateOf(if (state.flipped) Side.BLACK else Side.WHITE) }
     val boardPosition = exploredPositions.last()
     val lastMove = if (exploredPositions.size > 1) findTransitionMove(exploredPositions[exploredPositions.lastIndex - 1], boardPosition) else null
     val hints = selected?.let { from -> ChessRules.legalMoves(boardPosition).filter { it.from == from }.map { it.to }.toSet() }.orEmpty()
@@ -992,14 +1037,47 @@ private fun AnalysisScreen(vm: MainViewModel) {
         exploredPositions = exploredPositions + ChessRules.apply(boardPosition, move)
         selected = null
         followingLine = followsPv
-        if (followsPv) pvIndex++
+        if (followsPv) {
+            pvIndex++
+            if (pvIndex >= result.principalVariationUci.size) autoPlay = false
+        }
+    }
+
+    LaunchedEffect(autoPlay, pvIndex, exploredPositions) {
+        if (!autoPlay) return@LaunchedEffect
+        delay(1_000)
+        val uci = result.principalVariationUci.getOrNull(pvIndex)
+        val move = uci?.let(::parseUciMove)
+        val legal = ChessRules.legalMoves(exploredPositions.last())
+        if (move != null && move in legal) play(move, true) else autoPlay = false
     }
 
     LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         item { ScreenHeader("Analysis", onBack = { vm.navigate(AppScreen.LEVEL) }, trailing = state.level.title) }
         item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                BoardLookPicker(state.settings, vm::updateSettings)
+            }
+        }
+        item {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceDark).padding(5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                listOf(Side.WHITE to "White", Side.BLACK to "Black").forEach { (side, label) ->
+                    val active = coachSide == side
+                    Row(
+                        Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(14.dp)).background(if (active) Accent else Color.Transparent)
+                            .clickable { coachSide = side; if (state.flipped != (side == Side.BLACK)) vm.flip() }.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+                    ) {
+                        ChessPiece(Piece(PieceType.PAWN, side), true, Modifier.size(29.dp), state.settings.pieceStyle)
+                        Spacer(Modifier.width(5.dp)); Text(label, color = if (active) Color.White else Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+        item {
+            AnimatedContent(targetState = boardPosition, transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(220)) }, label = "boardMove") { shownPosition ->
             ChessBoard(
-                boardPosition, state.flipped, selected,
+                shownPosition, state.flipped, selected,
                 onTap = { square ->
                     val current = selected
                     if (current == null) {
@@ -1018,12 +1096,16 @@ private fun AnalysisScreen(vm: MainViewModel) {
                 highContrastBoard = state.settings.highContrastBoard,
                 boardDepth = state.settings.boardDepth,
                 pieceDepth = state.settings.pieceDepth,
+                boardTheme = state.settings.boardTheme,
+                pieceStyle = state.settings.pieceStyle,
             )
+            }
         }
         item {
             Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     IconButton(onClick = {
+                        autoPlay = false
                         if (exploredPositions.size > 1) {
                             exploredPositions = exploredPositions.dropLast(1)
                             if (followingLine && pvIndex > 0) pvIndex--
@@ -1034,19 +1116,22 @@ private fun AnalysisScreen(vm: MainViewModel) {
                         Text(if (followingLine) "EXPLORE BEST LINE" else "FREE PLAY", style = MaterialTheme.typography.labelMedium, color = Accent)
                         Text(if (followingLine) "Move $pvIndex of ${result.principalVariationUci.size}" else "Try any legal move", style = MaterialTheme.typography.bodyMedium, color = Muted)
                     }
-                    IconButton(onClick = {
+                    FilledIconButton(onClick = {
                         val uci = result.principalVariationUci.getOrNull(pvIndex)
                         val move = uci?.let { parseUciMove(it) }
                         if (move != null && move in ChessRules.legalMoves(boardPosition)) play(move, true)
-                    }, enabled = followingLine && pvIndex < result.principalVariationUci.size) { Icon(Icons.Rounded.SkipNext, contentDescription = "Next move") }
+                    }, enabled = followingLine && pvIndex < result.principalVariationUci.size, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Accent)) { Icon(Icons.Rounded.SkipNext, contentDescription = "Next move") }
                 }
                 Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TextButton(onClick = { exploredPositions = listOf(state.position); selected = null; pvIndex = 0; followingLine = true }, modifier = Modifier.weight(1f)) {
+                    Button(onClick = { autoPlay = !autoPlay }, enabled = followingLine && (pvIndex < result.principalVariationUci.size || autoPlay), modifier = Modifier.weight(1f), shape = RoundedCornerShape(15.dp)) {
+                        Icon(if (autoPlay) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text(if (autoPlay) "Pause" else "Auto line")
+                    }
+                    TextButton(onClick = { autoPlay = false; exploredPositions = listOf(state.position); selected = null; pvIndex = 0; followingLine = true }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Rounded.Refresh, null); Spacer(Modifier.width(6.dp)); Text("Reset")
                     }
-                    TextButton(onClick = { vm.analyzeFrom(boardPosition) }, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Rounded.CenterFocusStrong, null); Spacer(Modifier.width(6.dp)); Text("Analyze here")
-                    }
+                }
+                TextButton(onClick = { vm.analyzeFrom(boardPosition) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                    Icon(Icons.Rounded.SmartToy, null); Spacer(Modifier.width(6.dp)); Text("Ask coach from here")
                 }
             }
         }
@@ -1162,6 +1247,8 @@ private fun PracticeScreen(vm: MainViewModel) {
                 highContrastBoard = state.settings.highContrastBoard,
                 boardDepth = state.settings.boardDepth,
                 pieceDepth = state.settings.pieceDepth,
+                boardTheme = state.settings.boardTheme,
+                pieceStyle = state.settings.pieceStyle,
             )
         }
         item {
@@ -1325,7 +1412,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.1", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.2", "Stockfish 19 on supported ARM devices")
             }
         }
         item {

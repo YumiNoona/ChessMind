@@ -34,6 +34,8 @@ data class UserSettings(
     val darkMode: Boolean = false,
     val boardDepth: Boolean = false,
     val pieceDepth: Boolean = true,
+    val boardTheme: Int = 0,
+    val pieceStyle: Int = 0,
 )
 
 data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
@@ -88,6 +90,8 @@ class LocalStore(context: Context) {
         darkMode = preferences.getBoolean("setting_dark_mode", false),
         boardDepth = preferences.getBoolean("setting_board_depth", false),
         pieceDepth = preferences.getBoolean("setting_piece_depth", true),
+        boardTheme = preferences.getInt("setting_board_theme", 0),
+        pieceStyle = preferences.getInt("setting_piece_style", 0),
     )
 
     fun saveSettings(value: UserSettings) = preferences.edit {
@@ -99,6 +103,8 @@ class LocalStore(context: Context) {
         putBoolean("setting_dark_mode", value.darkMode)
         putBoolean("setting_board_depth", value.boardDepth)
         putBoolean("setting_piece_depth", value.pieceDepth)
+        putInt("setting_board_theme", value.boardTheme)
+        putInt("setting_piece_style", value.pieceStyle)
     }
 
     fun profile(): LocalProfile = LocalProfile(
@@ -135,7 +141,8 @@ class LocalStore(context: Context) {
             .put("legalHints", settings().legalHints).put("haptics", settings().haptics)
             .put("animations", settings().animations).put("highContrastBoard", settings().highContrastBoard)
             .put("darkMode", settings().darkMode).put("boardDepth", settings().boardDepth)
-            .put("pieceDepth", settings().pieceDepth))
+            .put("pieceDepth", settings().pieceDepth).put("boardTheme", settings().boardTheme)
+            .put("pieceStyle", settings().pieceStyle))
         .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .toString(2)
 
@@ -160,6 +167,8 @@ class LocalStore(context: Context) {
                 putBoolean("setting_dark_mode", settings.optBoolean("darkMode", false))
                 putBoolean("setting_board_depth", settings.optBoolean("boardDepth", false))
                 putBoolean("setting_piece_depth", settings.optBoolean("pieceDepth", true))
+                putInt("setting_board_theme", settings.optInt("boardTheme", 0))
+                putInt("setting_piece_style", settings.optInt("pieceStyle", 0))
             }
             if (profile != null) {
                 putString("profile_name", profile.optString("name", "Chess player"))
