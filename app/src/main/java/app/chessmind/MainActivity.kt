@@ -142,8 +142,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
@@ -336,10 +334,17 @@ private fun OnboardingScreen(vm: MainViewModel) {
             }
             Spacer(Modifier.weight(.55f))
             Box(
-                Modifier.size(190.dp).align(Alignment.CenterHorizontally).shadow(26.dp, RoundedCornerShape(54.dp))
-                    .clip(RoundedCornerShape(54.dp)).background(listOf(Coral, Sunny, Accent)[page]),
+                Modifier.fillMaxWidth().height(245.dp).align(Alignment.CenterHorizontally)
+                    .shadow(22.dp, RoundedCornerShape(42.dp), spotColor = listOf(Coral, Sunny, accent)[page].copy(.28f))
+                    .clip(RoundedCornerShape(42.dp)).background(listOf(Color(0xFFFFA08D), Color(0xFF8FB3FF), Color(0xFFFFD46B))[page]),
                 contentAlignment = Alignment.Center,
-            ) { Text(listOf("⌗", "♞", "♟")[page], color = Color.White, fontSize = 112.sp) }
+            ) {
+                Image(
+                    painterResource(listOf(R.drawable.art_scan_board, R.drawable.art_analysis, R.drawable.art_success)[page]),
+                    contentDescription = null, contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                )
+            }
             Spacer(Modifier.weight(.45f))
             Text(content.first, color = Accent, letterSpacing = 1.8.sp, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             Text(content.second, fontSize = 34.sp, lineHeight = 37.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 8.dp))
@@ -386,21 +391,22 @@ private fun HomeScreen(vm: MainViewModel) {
             ) {
                 Box(Modifier.fillMaxWidth().height(290.dp)) {
                     Image(
-                        painter = painterResource(R.drawable.chess_hero), contentDescription = null,
+                        painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.width(275.dp).height(250.dp).align(Alignment.CenterEnd).offset(x = 38.dp, y = 4.dp),
+                        modifier = Modifier.width(290.dp).height(250.dp).align(Alignment.CenterEnd).offset(x = 54.dp, y = 6.dp),
                     )
                     Column(Modifier.align(Alignment.TopStart).padding(24.dp).width(190.dp)) {
                         Text("SOLVE A POSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                         Text("Scan or choose a chess board", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(.78f), modifier = Modifier.padding(top = 8.dp))
                     }
-                    Button(
+                    PlayfulActionButton(
+                        label = "Scan board",
+                        icon = Icons.Rounded.CameraAlt,
                         onClick = { vm.navigate(AppScreen.SCANNER) },
-                        modifier = Modifier.align(Alignment.BottomStart).padding(22.dp).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Accent), shape = RoundedCornerShape(18.dp),
-                    ) {
-                        Icon(Icons.Rounded.CameraAlt, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Scan board"); Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Rounded.ArrowForward, null)
-                    }
+                        modifier = Modifier.align(Alignment.BottomStart).padding(22.dp),
+                        colors = listOf(Color.White, Color(0xFFEAF2FF)),
+                        contentColor = BrandBlue,
+                    )
                 }
             }
         }
@@ -409,8 +415,8 @@ private fun HomeScreen(vm: MainViewModel) {
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HomeActionCard("Scan board", "Camera or photo", Icons.Rounded.CenterFocusStrong, Accent, Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
-                HomeActionCard("Set position", "Build it yourself", Icons.Rounded.Edit, Coral, Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Import image", "Gallery or files", R.drawable.art_import_image, Color(0xFFFF8D78), Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
+                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
             }
         }
         if (vm.state.history.isNotEmpty()) item {
@@ -418,8 +424,8 @@ private fun HomeScreen(vm: MainViewModel) {
                 onClick = { vm.navigate(AppScreen.HISTORY) }, shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark),
             ) {
-                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.History, contentDescription = null, tint = Accent, modifier = Modifier.size(30.dp))
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Image(painterResource(R.drawable.art_history), null, contentScale = ContentScale.Crop, modifier = Modifier.size(62.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Continue your last analysis", style = MaterialTheme.typography.titleMedium)
@@ -433,11 +439,38 @@ private fun HomeScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun HomeActionCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(140.dp), shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = SurfaceLight, contentColor = Ink), elevation = CardDefaults.cardElevation(1.dp)) {
-        Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp), tint = color)
-            Column { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Muted) }
+private fun HomeActionCard(title: String, subtitle: String, art: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = modifier.height(170.dp).shadow(10.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.32f)), shape = RoundedCornerShape(27.dp), colors = CardDefaults.cardColors(containerColor = color, contentColor = Color.White), elevation = CardDefaults.cardElevation(3.dp)) {
+        Box(Modifier.fillMaxSize()) {
+            Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(126.dp).align(Alignment.TopEnd).offset(x = 24.dp, y = (-8).dp))
+            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.78f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayfulActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    colors: List<Color> = listOf(Color(0xFF5B8CFF), Color(0xFF2E63F6)),
+    contentColor: Color = Color.White,
+) {
+    Box(
+        modifier.height(56.dp).shadow(11.dp, RoundedCornerShape(19.dp), spotColor = colors.last().copy(.45f))
+            .clip(RoundedCornerShape(19.dp)).background(Brush.verticalGradient(colors)).clickable(onClick = onClick),
+    ) {
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(.36f)))
+        Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Icon(icon, null, tint = contentColor, modifier = Modifier.size(23.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(label, color = contentColor, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(9.dp))
+            Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = contentColor, modifier = Modifier.size(21.dp))
         }
     }
 }
@@ -465,7 +498,16 @@ private fun ProfileScreen(vm: MainViewModel) {
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).navigationBarsPadding()) {
         ScreenHeader("Your profile", onBack = { vm.navigate(AppScreen.HOME) })
-        Spacer(Modifier.height(22.dp))
+        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC85A)), modifier = Modifier.fillMaxWidth().height(150.dp)) {
+            Box(Modifier.fillMaxSize()) {
+                Column(Modifier.padding(20.dp).width(180.dp)) {
+                    Text("YOUR CHESS STORY", style = MaterialTheme.typography.labelMedium, color = LightInk.copy(.66f))
+                    Text("Play like a champion", style = MaterialTheme.typography.headlineMedium, color = LightInk, modifier = Modifier.padding(top = 6.dp))
+                }
+                Image(painterResource(R.drawable.art_profile), null, contentScale = ContentScale.Fit, modifier = Modifier.size(180.dp).align(Alignment.CenterEnd).offset(x = 18.dp, y = 7.dp))
+            }
+        }
+        Spacer(Modifier.height(18.dp))
         Box(Modifier.align(Alignment.CenterHorizontally)) {
             UserAvatar(imageUri, name, Modifier.size(132.dp))
             IconButton(onClick = { picker.launch(arrayOf("image/*")) }, modifier = Modifier.align(Alignment.BottomEnd).background(SurfaceLight, RoundedCornerShape(14.dp))) {
@@ -667,12 +709,11 @@ private fun SetupScreen(vm: MainViewModel) {
             }, modifier = Modifier.weight(1f)) { Text("Copy FEN") }
         }
         Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { vm.proceedToLevel() },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Sunny, contentColor = Ink),
-        ) { Text("Analyze position  →", fontWeight = FontWeight.Bold) }
+        PlayfulActionButton(
+            label = "Analyze position", icon = Icons.Rounded.CenterFocusStrong,
+            onClick = { vm.proceedToLevel() }, modifier = Modifier.fillMaxWidth(),
+            colors = listOf(Color(0xFFFFD778), Color(0xFFFFB83E)), contentColor = LightInk,
+        )
         Spacer(Modifier.height(14.dp))
     }
     if (showFen) FenDialog(
@@ -746,8 +787,8 @@ private fun ChessBoard(
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f)
             .graphicsLayer { if (boardDepth) { rotationX = 2.5f; cameraDistance = 18f * density } }
-            .shadow(if (boardDepth) 24.dp else 12.dp, RoundedCornerShape(26.dp), spotColor = Color.Black.copy(.38f))
-            .clip(RoundedCornerShape(26.dp)).background(Color(0xFF17324D)).padding(if (boardDepth) 9.dp else 7.dp),
+            .shadow(if (boardDepth) 22.dp else 12.dp, RoundedCornerShape(26.dp), spotColor = Color(0xFF356DFF).copy(.24f))
+            .clip(RoundedCornerShape(26.dp)).background(SurfaceLight).padding(if (boardDepth) 8.dp else 7.dp),
     ) {
         Column(Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))) {
             for (displayRank in 0..7) {
@@ -807,90 +848,19 @@ private fun ChessBoard(
 @Composable
 private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier) {
     val light = piece.side == Side.WHITE
-    Canvas(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }) {
-        val shadow = if (light) Color(0xFF745C49).copy(.5f) else Color.Black.copy(.58f)
-        translate(0f, size.height * if (depth) .055f else .025f) {
-            drawPieceSilhouette(piece.type, Brush.linearGradient(listOf(shadow, shadow)))
-        }
-        val colors = if (light) {
-            if (depth) listOf(Color.White, Color(0xFFFFE9CC), Color(0xFFD7B48B)) else listOf(Color(0xFFFFF4E2), Color(0xFFFFF4E2))
-        } else {
-            if (depth) listOf(Color(0xFF536579), Color(0xFF1C2734), Color(0xFF080C12)) else listOf(Color(0xFF182330), Color(0xFF182330))
-        }
-        drawPieceSilhouette(piece.type, Brush.verticalGradient(colors))
-        if (depth) {
-            drawCircle(
-                color = Color.White.copy(if (light) .42f else .18f),
-                radius = size.width * .045f,
-                center = Offset(size.width * .43f, size.height * .24f),
-            )
-        }
+    val glyph = Piece(piece.type, Side.BLACK).symbol
+    val foreground = if (light) Color(0xFFFFF3DF) else Color(0xFF172331)
+    val shadow = if (light) Color(0xFF8A674F) else Color.Black
+    Box(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }, contentAlignment = Alignment.Center) {
+        if (depth) Text(
+            glyph, fontFamily = FontFamily.Serif, fontSize = 43.sp, color = shadow.copy(.62f),
+            modifier = Modifier.offset(y = 3.dp).scale(1.03f),
+        )
+        Text(
+            glyph, fontFamily = FontFamily.Serif, fontSize = 43.sp, color = foreground,
+            style = TextStyle(shadow = Shadow(if (light) Color.White.copy(.7f) else Color.White.copy(.18f), Offset(-1f, -1f), if (depth) 2.2f else .5f)),
+        )
     }
-}
-
-private fun DrawScope.drawPieceSilhouette(type: PieceType, brush: Brush) {
-    val w = size.width
-    val h = size.height
-    fun body(topWidth: Float = .25f, shoulderWidth: Float = .42f) = Path().apply {
-        moveTo(w * (0.5f - topWidth / 2), h * .39f)
-        lineTo(w * (0.5f + topWidth / 2), h * .39f)
-        cubicTo(w * .57f, h * .54f, w * (0.5f + shoulderWidth / 2), h * .62f, w * .72f, h * .75f)
-        lineTo(w * .28f, h * .75f)
-        cubicTo(w * (0.5f - shoulderWidth / 2), h * .62f, w * .43f, h * .54f, w * (0.5f - topWidth / 2), h * .39f)
-        close()
-    }
-    when (type) {
-        PieceType.PAWN -> {
-            drawCircle(brush, w * .145f, Offset(w * .5f, h * .27f))
-            drawPath(body(.23f, .35f), brush)
-        }
-        PieceType.ROOK -> {
-            val crown = Path().apply {
-                moveTo(w * .27f, h * .16f); lineTo(w * .39f, h * .16f); lineTo(w * .39f, h * .27f)
-                lineTo(w * .47f, h * .27f); lineTo(w * .47f, h * .16f); lineTo(w * .59f, h * .16f)
-                lineTo(w * .59f, h * .27f); lineTo(w * .71f, h * .27f); lineTo(w * .67f, h * .4f)
-                lineTo(w * .31f, h * .4f); close()
-            }
-            drawPath(crown, brush); drawPath(body(.28f, .4f), brush)
-        }
-        PieceType.KNIGHT -> {
-            val horse = Path().apply {
-                moveTo(w * .3f, h * .72f); cubicTo(w * .35f, h * .58f, w * .31f, h * .48f, w * .4f, h * .39f)
-                lineTo(w * .34f, h * .18f); lineTo(w * .53f, h * .26f); lineTo(w * .65f, h * .22f)
-                cubicTo(w * .78f, h * .38f, w * .68f, h * .55f, w * .55f, h * .55f)
-                lineTo(w * .47f, h * .72f); close()
-            }
-            drawPath(horse, brush)
-            drawCircle(Color.White.copy(.52f), w * .025f, Offset(w * .57f, h * .33f))
-        }
-        PieceType.BISHOP -> {
-            val head = Path().apply {
-                moveTo(w * .5f, h * .13f); cubicTo(w * .34f, h * .27f, w * .35f, h * .38f, w * .5f, h * .45f)
-                cubicTo(w * .65f, h * .38f, w * .66f, h * .27f, w * .5f, h * .13f); close()
-            }
-            drawPath(head, brush); drawPath(body(.2f, .4f), brush)
-            drawLine(Color.White.copy(.5f), Offset(w * .48f, h * .22f), Offset(w * .56f, h * .34f), w * .035f, cap = StrokeCap.Round)
-        }
-        PieceType.QUEEN -> {
-            listOf(.31f, .5f, .69f).forEachIndexed { index, x ->
-                drawCircle(brush, w * .065f, Offset(w * x, h * if (index == 1) .13f else .19f))
-            }
-            val crown = Path().apply {
-                moveTo(w * .29f, h * .23f); lineTo(w * .4f, h * .36f); lineTo(w * .5f, h * .2f)
-                lineTo(w * .6f, h * .36f); lineTo(w * .71f, h * .23f); lineTo(w * .65f, h * .43f)
-                lineTo(w * .35f, h * .43f); close()
-            }
-            drawPath(crown, brush); drawPath(body(.25f, .43f), brush)
-        }
-        PieceType.KING -> {
-            drawRoundRect(brush, Offset(w * .46f, h * .1f), Size(w * .08f, h * .25f), CornerRadius(w * .03f))
-            drawRoundRect(brush, Offset(w * .38f, h * .17f), Size(w * .24f, h * .08f), CornerRadius(w * .03f))
-            drawCircle(brush, w * .13f, Offset(w * .5f, h * .38f))
-            drawPath(body(.24f, .43f), brush)
-        }
-    }
-    drawRoundRect(brush, Offset(w * .22f, h * .7f), Size(w * .56f, h * .11f), CornerRadius(w * .055f))
-    drawRoundRect(brush, Offset(w * .16f, h * .79f), Size(w * .68f, h * .12f), CornerRadius(w * .06f))
 }
 
 @Composable
@@ -989,7 +959,9 @@ private fun LevelCard(level: AnalysisLevel, onClick: () -> Unit) {
                 Text(level.title, color = Ink, style = MaterialTheme.typography.titleMedium)
                 Text(level.subtitle, color = Muted, style = MaterialTheme.typography.bodyMedium)
             }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
+            if (level == AnalysisLevel.BEGINNER) {
+                Image(painterResource(R.drawable.art_practice), null, contentScale = ContentScale.Crop, modifier = Modifier.size(68.dp).offset(x = 8.dp))
+            } else Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
         }
     }
 }
@@ -1076,12 +1048,13 @@ private fun AnalysisScreen(vm: MainViewModel) {
         item {
             GlassCard {
                 Text("BEST MOVE", style = MaterialTheme.typography.labelMedium, color = Muted)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                    Text(result.bestMove, style = MaterialTheme.typography.displaySmall, color = Accent)
-                    Column(horizontalAlignment = Alignment.End) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(result.bestMove, style = MaterialTheme.typography.displaySmall, color = Accent)
                         Text(result.evaluation, style = MaterialTheme.typography.titleLarge)
                         Text("Depth ${result.depth}", style = MaterialTheme.typography.labelMedium, color = Muted)
                     }
+                    Image(painterResource(R.drawable.art_success), null, contentScale = ContentScale.Crop, modifier = Modifier.size(112.dp).offset(x = 12.dp))
                 }
             }
         }
@@ -1129,7 +1102,7 @@ private fun AnalyzingScreen(level: AnalysisLevel, onStop: () -> Unit) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(260.dp).clip(RoundedCornerShape(54.dp)).background(Color(0xFFBBD9FF)), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.chess_hero), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(10.dp).scale(pulse))
+                Image(painterResource(R.drawable.art_analysis), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp).scale(pulse))
             }
             Text("Finding the clearest line…", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 28.dp))
             Text("${level.title} analysis", style = MaterialTheme.typography.labelMedium, color = Accent, modifier = Modifier.padding(top = 8.dp))
@@ -1261,13 +1234,21 @@ private fun HistoryScreen(vm: MainViewModel) {
     val history = vm.state.history
     LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
         item { ScreenHeader("Analysis history", onBack = { vm.navigate(AppScreen.HOME) }, trailing = "${history.size} LOCAL") }
-        if (history.isEmpty()) item { GlassCard { Text("No analysis history yet", fontWeight = FontWeight.Bold); Text("Completed analyses appear here automatically.", color = Muted) } }
+        if (history.isEmpty()) item {
+            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(painterResource(R.drawable.art_empty_history), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(210.dp))
+                    Text("Your next great idea starts here", style = MaterialTheme.typography.titleMedium)
+                    Text("Completed analyses appear here automatically.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
+                }
+            }
+        }
         items(history, key = { it.id }) { item ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark)
                     .clickable { vm.openHistory(item) }.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Accent), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.History, contentDescription = null, tint = Espresso) }
+                Image(painterResource(R.drawable.art_history), null, contentScale = ContentScale.Crop, modifier = Modifier.size(58.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(item.bestMove, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -1307,8 +1288,7 @@ private fun SettingsScreen(vm: MainViewModel) {
                         Text("MAKE IT YOURS", color = Sunny, style = MaterialTheme.typography.labelMedium)
                         Text("A board that feels like you", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 7.dp))
                     }
-                    Icon(Icons.Rounded.Settings, null, tint = Color.White.copy(.92f), modifier = Modifier.align(Alignment.CenterEnd).offset(x = 14.dp).size(104.dp))
-                    Icon(Icons.Rounded.AutoAwesome, null, tint = Sunny, modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp).size(28.dp))
+                    Image(painterResource(R.drawable.art_settings), null, contentScale = ContentScale.Fit, modifier = Modifier.align(Alignment.CenterEnd).size(155.dp).offset(x = 25.dp, y = 8.dp))
                 }
             }
         }
@@ -1340,7 +1320,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 1.0.2", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.0", "Stockfish 19 on supported ARM devices")
             }
         }
         item {
@@ -1462,22 +1442,28 @@ private fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
 private fun FloatingDock(active: AppScreen, onNavigate: (AppScreen) -> Unit, modifier: Modifier = Modifier) {
     val haptic = LocalHapticFeedback.current
     Surface(
-        modifier.navigationBarsPadding().padding(bottom = 14.dp).width(244.dp).height(72.dp).shadow(18.dp, RoundedCornerShape(30.dp)),
+        modifier.navigationBarsPadding().padding(bottom = 14.dp).width(226.dp).height(68.dp).shadow(18.dp, RoundedCornerShape(28.dp)),
         shape = RoundedCornerShape(30.dp), color = SurfaceLight, tonalElevation = 6.dp,
     ) {
-        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(7.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf(
                 Triple(AppScreen.HOME, "Home", Icons.Rounded.Home),
-                Triple(AppScreen.SCANNER, "Scan", Icons.Rounded.CenterFocusStrong),
                 Triple(AppScreen.HISTORY, "History", Icons.Rounded.History),
             ).forEach { (screen, label, icon) ->
                 val selected = active == screen
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onNavigate(screen) },
-                        modifier = Modifier.size(if (screen == AppScreen.SCANNER) 50.dp else 46.dp),
-                    ) { Icon(icon, contentDescription = label, tint = if (selected || screen == AppScreen.SCANNER) Accent else Muted, modifier = Modifier.size(if (screen == AppScreen.SCANNER) 29.dp else 25.dp)) }
-                    Box(Modifier.width(if (selected) 18.dp else 4.dp).height(3.dp).clip(CircleShape).background(if (selected) Accent else Color.Transparent))
+                Surface(
+                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onNavigate(screen) },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(21.dp),
+                    color = if (selected) Accent else Color.Transparent,
+                    contentColor = if (selected) Color.White else Muted,
+                    shadowElevation = if (selected) 7.dp else 0.dp,
+                ) {
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
                 }
             }
         }
