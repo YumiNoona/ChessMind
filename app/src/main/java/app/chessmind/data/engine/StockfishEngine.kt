@@ -77,6 +77,7 @@ private class StockfishProcessEngine(private val context: Context) : ChessEngine
                 explanation = "$side should play ${ChessRules.notation(position, bestMove)}. ${reasons.joinToString(" ")}",
                 reasons = reasons,
                 principalVariation = notationLine(position, mainMoves),
+                principalVariationUci = main.pv,
                 candidates = ordered.take(level.multiPv).mapIndexed { index, engineLine ->
                     val pv = engineLine.pv.mapNotNull(::parseMoveOrNull)
                     val move = pv.firstOrNull()

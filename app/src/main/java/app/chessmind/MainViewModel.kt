@@ -10,6 +10,7 @@ import app.chessmind.data.LocalStore
 import app.chessmind.data.PracticeStats
 import app.chessmind.data.SavedPosition
 import app.chessmind.data.UserSettings
+import app.chessmind.data.LocalProfile
 import app.chessmind.domain.engine.AnalysisLevel
 import app.chessmind.domain.engine.AnalysisResult
 import app.chessmind.data.engine.HybridChessEngine
@@ -21,7 +22,7 @@ import app.chessmind.domain.model.Position
 import app.chessmind.domain.model.Side
 import app.chessmind.domain.model.Square
 
-enum class AppScreen { ONBOARDING, HOME, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PRACTICE, SAVED, HISTORY, SETTINGS }
+enum class AppScreen { ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, HISTORY, SETTINGS }
 
 data class PracticePuzzle(val title: String, val subtitle: String, val fen: String, val solution: String, val hint: String)
 
@@ -45,6 +46,7 @@ data class AppUiState(
     val settings: UserSettings = UserSettings(),
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
+    val profile: LocalProfile = LocalProfile(),
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -59,6 +61,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             screen = if (store.isOnboarded()) AppScreen.HOME else AppScreen.ONBOARDING,
             savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
             settings = store.settings(),
+            profile = store.profile(),
             practicePosition = Fen.parse(puzzles.first().fen).getOrThrow(),
         )
     )
@@ -170,6 +173,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateSettings(value: UserSettings) {
         store.saveSettings(value)
         state = state.copy(settings = value)
+    }
+
+    fun updateProfile(name: String, imageUri: String?) {
+        val profile = LocalProfile(name.trim().ifBlank { "Chess player" }, imageUri)
+        store.saveProfile(profile)
+        state = state.copy(profile = profile)
+    }
+
+    fun analyzeFrom(position: Position) {
+        commitPosition(position)
+        state = state.copy(screen = AppScreen.LEVEL, result = null)
     }
 
     suspend fun analyze(level: AnalysisLevel) {

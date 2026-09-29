@@ -2,11 +2,13 @@
 
 ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Current version: 1.0.2.** The app is usable end-to-end for manual positions, FEN/PGN imports, local analysis, practice, history, and saved positions. Camera/gallery capture is included. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
+> **Current version: 1.0.2.** The app is usable end-to-end for camera/gallery capture, manual positions, FEN/PGN imports, local analysis, interactive line exploration, and history. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
 
 ## What works
 
-- Premium Jetpack Compose interface with a three-icon floating dock
+- Warm Material 3 interface with a Home–Scan–History floating dock
+- Bundled Space Grotesk and JetBrains Mono typography
+- Original ChessMind hero illustration and animated analysis state
 - Short first-run onboarding and edge-to-edge phone layout
 - CameraX scanner overlay plus gallery import and image rotation/review
 - Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls
@@ -14,9 +16,10 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Complete legal move generation, including check filtering, castling, en passant, and promotion
 - Four analysis presets: Beginner, Intermediate, Master, and God mode
 - Packaged Stockfish 19 UCI analysis on ARM devices, with a cancellable built-in engine fallback
-- MultiPV candidate moves, evaluation, depth, principal variation, human-readable reasons, and move visualization
-- Offline practice positions, accuracy, streak, and best-streak tracking
-- Local analysis history, saved positions, reopen/delete/clear actions, and JSON backup/restore
+- MultiPV candidate moves, evaluation, depth, principal variation, and human-readable reasons
+- Interactive analysis board with previous/next line controls, free legal play, reset, and re-analysis
+- Local analysis history plus JSON backup/restore
+- Local player profile with editable name and profile photo
 - Functional settings for animation, coordinates, legal hints, haptics, and high-contrast board colors
 - No account, analytics SDK, cloud engine, or image upload
 
@@ -72,6 +75,8 @@ keyPassword=your-key-password
 ## Stockfish and licensing
 
 ChessMind's engine layer is implementation-independent. On supported ARM devices it launches the packaged official [Stockfish 19](https://github.com/official-stockfish/Stockfish/releases/tag/sf_19) binary through UCI; unsupported ABIs transparently use the built-in fallback engine. Stockfish is licensed under GPLv3, whose text is packaged at `app/src/main/assets/licenses/stockfish-gpl-3.txt`. The exact upstream source is available from the linked release/tag. Preserve the license and corresponding-source availability when redistributing an APK containing Stockfish.
+
+Space Grotesk and JetBrains Mono are bundled under the SIL Open Font License; their license texts are included beside the Stockfish license.
 
 ## Privacy
 

@@ -33,6 +33,8 @@ data class UserSettings(
     val highContrastBoard: Boolean = false,
 )
 
+data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
+
 class LocalStore(context: Context) {
     private val preferences = context.getSharedPreferences("chessmind_local", Context.MODE_PRIVATE)
 
@@ -90,6 +92,16 @@ class LocalStore(context: Context) {
         putBoolean("setting_high_contrast", value.highContrastBoard)
     }
 
+    fun profile(): LocalProfile = LocalProfile(
+        name = preferences.getString("profile_name", "Chess player").orEmpty().ifBlank { "Chess player" },
+        imageUri = preferences.getString("profile_image", null),
+    )
+
+    fun saveProfile(value: LocalProfile) = preferences.edit {
+        putString("profile_name", value.name.trim().ifBlank { "Chess player" })
+        if (value.imageUri == null) remove("profile_image") else putString("profile_image", value.imageUri)
+    }
+
     fun recordPractice(correct: Boolean): PracticeStats {
         val old = stats()
         val streak = if (correct) old.streak + 1 else 0
@@ -113,6 +125,7 @@ class LocalStore(context: Context) {
         .put("settings", JSONObject().put("coordinates", settings().coordinates)
             .put("legalHints", settings().legalHints).put("haptics", settings().haptics)
             .put("animations", settings().animations).put("highContrastBoard", settings().highContrastBoard))
+        .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .toString(2)
 
     fun importJson(value: String) {
@@ -122,6 +135,7 @@ class LocalStore(context: Context) {
         val history = root.getJSONArray("history")
         val practice = root.getJSONObject("practice")
         val settings = root.optJSONObject("settings")
+        val profile = root.optJSONObject("profile")
         preferences.edit {
             putString("saved", saved.toString()); putString("history", history.toString())
             putInt("practice_solved", practice.optInt("solved")); putInt("practice_correct", practice.optInt("correct"))
@@ -132,6 +146,10 @@ class LocalStore(context: Context) {
                 putBoolean("setting_haptics", settings.optBoolean("haptics", true))
                 putBoolean("setting_animations", settings.optBoolean("animations", true))
                 putBoolean("setting_high_contrast", settings.optBoolean("highContrastBoard", false))
+            }
+            if (profile != null) {
+                putString("profile_name", profile.optString("name", "Chess player"))
+                profile.optString("imageUri").takeIf { it.isNotBlank() && it != "null" }?.let { putString("profile_image", it) }
             }
         }
     }

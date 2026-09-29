@@ -31,6 +31,7 @@ data class AnalysisResult(
     val explanation: String,
     val reasons: List<String>,
     val principalVariation: List<String>,
+    val principalVariationUci: List<String> = emptyList(),
     val candidates: List<CandidateLine> = emptyList(),
     val engineName: String,
 )
@@ -86,6 +87,7 @@ class LocalChessEngine : ChessEngine {
             explanation = "$sideName should play ${ChessRules.notation(position, bestMove)}. ${reasons.joinToString(" ")}",
             reasons = reasons,
             principalVariation = san,
+            principalVariationUci = best.line.map { it.uci },
             candidates = visible.mapIndexed { index, (move, node) ->
                 CandidateLine(
                     move = ChessRules.notation(position, move),
@@ -171,7 +173,7 @@ class LocalChessEngine : ChessEngine {
         val check = ChessRules.isInCheck(position, position.sideToMove)
         return AnalysisResult("—", if (check) "Checkmate" else "Draw", depth,
             if (check) "The side to move is checkmated." else "The position is stalemate.",
-            listOf(if (check) "No legal move can answer the check" else "No legal move is available"), emptyList(), engineName = "ChessMind local engine")
+            listOf(if (check) "No legal move can answer the check" else "No legal move is available"), emptyList(), principalVariationUci = emptyList(), engineName = "ChessMind local engine")
     }
 
     private fun expired() = stopped.get() || System.nanoTime() >= deadline
