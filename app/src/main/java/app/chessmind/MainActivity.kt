@@ -121,11 +121,16 @@ import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -168,6 +173,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
 import java.io.File
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import app.chessmind.domain.engine.AnalysisLevel
 import app.chessmind.domain.model.Fen
 import app.chessmind.domain.model.Piece
@@ -198,6 +204,18 @@ private val SurfaceDark: Color @Composable get() = MaterialTheme.colorScheme.sur
 private val SurfaceLight: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
 private val Accent: Color @Composable get() = MaterialTheme.colorScheme.primary
 private val Muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+
+private data class LeagueLook(val name: String, val minRating: Int, val art: Int, val color: Color)
+private val LeagueLooks = listOf(
+    LeagueLook("Iron", 0, R.drawable.league_iron, Color(0xFF66717E)),
+    LeagueLook("Silver", 600, R.drawable.league_silver, Color(0xFF84A9C9)),
+    LeagueLook("Gold", 800, R.drawable.league_gold, Color(0xFFF2B83D)),
+    LeagueLook("Platinum", 1000, R.drawable.league_platinum, Color(0xFF55C8DB)),
+    LeagueLook("Diamond", 1300, R.drawable.league_diamond, Color(0xFF5689FF)),
+    LeagueLook("Master", 1600, R.drawable.league_master, Color(0xFF8D63E8)),
+    LeagueLook("Grandmaster", 2000, R.drawable.league_grandmaster, Color(0xFFE25A4B)),
+)
+private fun leagueFor(rating: Int) = LeagueLooks.last { rating >= it.minRating }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -273,6 +291,9 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
         vm.navigate(
             when (state.screen) {
                 AppScreen.ANALYSIS -> AppScreen.LEVEL
+                AppScreen.GAME -> AppScreen.PLAY_SELECT
+                AppScreen.GAME_REVIEW -> AppScreen.GAME
+                AppScreen.PLAY_SELECT -> AppScreen.HOME
                 AppScreen.LEVEL -> AppScreen.SETUP
                 AppScreen.PROFILE, AppScreen.SCANNER, AppScreen.IMAGE_REVIEW, AppScreen.SETUP, AppScreen.HISTORY,
                 AppScreen.SETTINGS -> AppScreen.HOME
@@ -307,6 +328,9 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
                     AppScreen.SETUP -> SetupScreen(vm)
                     AppScreen.LEVEL -> LevelScreen(vm)
                     AppScreen.ANALYSIS -> AnalysisScreen(vm)
+                    AppScreen.PLAY_SELECT -> PlaySelectScreen(vm)
+                    AppScreen.GAME -> GameScreen(vm)
+                    AppScreen.GAME_REVIEW -> GameReviewScreen(vm)
                     AppScreen.HISTORY -> HistoryScreen(vm)
                     AppScreen.SETTINGS -> SettingsScreen(vm)
                 }
@@ -416,7 +440,7 @@ private fun HomeScreen(vm: MainViewModel) {
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HomeActionCard("Import image", "Gallery or files", R.drawable.art_import_image, Color(0xFFFF8D78), Modifier.weight(1f)) { vm.navigate(AppScreen.SCANNER) }
+                HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f)) { vm.navigate(AppScreen.PLAY_SELECT) }
                 HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
             }
         }
@@ -452,6 +476,187 @@ private fun HomeActionCard(title: String, subtitle: String, art: Int, color: Col
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.78f))
             }
         }
+    }
+}
+
+@Composable
+private fun PlaySelectScreen(vm: MainViewModel) {
+    val progress = vm.state.progress
+    val league = leagueFor(progress.rating)
+    LazyColumn(
+        modifier = Modifier.navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item { ScreenHeader("Play chess", onBack = { vm.navigate(AppScreen.HOME) }) }
+        item {
+            Card(
+                shape = RoundedCornerShape(30.dp), colors = CardDefaults.cardColors(containerColor = league.color, contentColor = Color.White),
+                modifier = Modifier.fillMaxWidth().height(210.dp).shadow(15.dp, RoundedCornerShape(30.dp), spotColor = league.color.copy(.4f)),
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    Image(painterResource(league.art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(210.dp).align(Alignment.CenterEnd).offset(x = 20.dp))
+                    Column(Modifier.padding(24.dp).width(180.dp)) {
+                        Text("YOUR LEAGUE", fontFamily = JetBrainsMono, fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
+                        Text(league.name, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 5.dp))
+                        Text("${progress.rating} points", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp))
+                        Text("${progress.wins} wins · ${progress.games} games", color = Color.White.copy(.78f), fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
+                    }
+                }
+            }
+        }
+        item { Text("Choose your match", style = MaterialTheme.typography.titleLarge) }
+        item {
+            PlayModeCard(
+                title = "Vs adaptive AI", subtitle = "A fair rival, rated just below you",
+                detail = "About ${(progress.rating - 75).coerceAtLeast(300)} points", art = league.art,
+                color = Color(0xFF6C91FF), icon = Icons.Rounded.SmartToy,
+            ) { vm.startGame(GameMode.AI) }
+        }
+        item {
+            PlayModeCard(
+                title = "Play a friend", subtitle = "Two players, one board",
+                detail = "Pass-and-play locally", art = R.drawable.art_practice,
+                color = Color(0xFF69D3AE), icon = Icons.Rounded.Groups,
+            ) { vm.startGame(GameMode.FRIEND) }
+        }
+        item {
+            Text("LEAGUE ROAD", style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+                items(LeagueLooks) { item ->
+                    val reached = progress.rating >= item.minRating
+                    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(if (reached) item.color.copy(.18f) else SurfaceDark), modifier = Modifier.width(112.dp)) {
+                        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(painterResource(item.art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(72.dp).graphicsLayer { alpha = if (reached) 1f else .38f })
+                            Text(item.name, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(if (item.minRating == 0) "Start" else "${item.minRating}+", color = Muted, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(16.dp)) }
+    }
+}
+
+@Composable
+private fun PlayModeCard(title: String, subtitle: String, detail: String, art: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, shape = RoundedCornerShape(27.dp), colors = CardDefaults.cardColors(color, Color.White), modifier = Modifier.fillMaxWidth().height(154.dp)) {
+        Box(Modifier.fillMaxSize()) {
+            Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(160.dp).align(Alignment.CenterEnd).offset(x = 18.dp))
+            Column(Modifier.align(Alignment.CenterStart).padding(20.dp).width(215.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(7.dp)); Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
+                Text(subtitle, color = Color.White.copy(.82f), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Text(detail, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameScreen(vm: MainViewModel) {
+    val state = vm.state
+    val position = state.gamePosition
+    val legal = ChessRules.legalMoves(position)
+    val hints = state.gameSelected?.let { from -> legal.filter { it.from == from }.map { it.to }.toSet() }.orEmpty()
+    val last = state.gameMoves.lastOrNull()?.move
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(state.aiThinking, state.gameMoves.size) {
+        if (state.aiThinking) { delay(650); vm.playAiMove() }
+    }
+    LazyColumn(
+        modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { ScreenHeader(if (state.gameMode == GameMode.AI) "Vs adaptive AI" else "Friend match", onBack = { vm.navigate(AppScreen.PLAY_SELECT) }, trailing = if (state.gameMode == GameMode.AI) "${state.aiRating}" else "LOCAL") }
+        item {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                val league = leagueFor(if (state.gameMode == GameMode.AI) state.aiRating else state.progress.rating)
+                Image(painterResource(league.art), null, modifier = Modifier.size(54.dp), contentScale = ContentScale.Fit)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if (state.aiThinking) "Opponent is thinking…" else if (state.gameResult != null) state.gameResult else "${position.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} to move", fontWeight = FontWeight.Bold)
+                    Text(if (state.gameMode == GameMode.AI) "${league.name} rival · ${state.aiRating} points" else "Pass the board after each move", color = Muted, fontSize = 12.sp)
+                }
+                if (state.aiThinking) Text("•••", color = Accent, fontSize = 22.sp)
+            }
+        }
+        item { BoardLookPicker(state.settings, vm::updateSettings) }
+        item {
+            ChessBoard(
+                position, state.flipped, state.gameSelected, vm::tapGame, {},
+                showCoordinates = state.settings.coordinates, hintSquares = if (state.settings.legalHints) hints else emptySet(),
+                lastMove = last?.let { it.from to it.to }, haptics = state.settings.haptics,
+                highContrastBoard = state.settings.highContrastBoard, boardDepth = state.settings.boardDepth,
+                pieceDepth = state.settings.pieceDepth, boardTheme = state.settings.boardTheme, pieceStyle = state.settings.pieceStyle,
+            )
+        }
+        if (state.gameMoves.isNotEmpty()) item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                items(state.gameMoves.takeLast(16)) { record ->
+                    Box(Modifier.clip(RoundedCornerShape(10.dp)).background(SurfaceDark).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                        Text(record.notation, fontFamily = JetBrainsMono, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+        if (state.gameResult == null) item {
+            TextButton(onClick = vm::resignGame, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Flag, null); Spacer(Modifier.width(6.dp)); Text("Resign game") }
+        } else item {
+            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(Sunny, LightInk)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.EmojiEvents, null, modifier = Modifier.size(38.dp)); Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) { Text(state.gameResult, fontWeight = FontWeight.ExtraBold); Text("Review ideas for White and Black", fontSize = 12.sp) }
+                }
+            }
+            Button(onClick = { scope.launch { vm.buildGameReview() } }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                Icon(Icons.Rounded.Psychology, null); Spacer(Modifier.width(7.dp)); Text("Analyze both sides")
+            }
+        }
+        item { Spacer(Modifier.height(20.dp)) }
+    }
+}
+
+@Composable
+private fun GameReviewScreen(vm: MainViewModel) {
+    val state = vm.state
+    var index by remember(state.gameReview.size) { mutableStateOf(0) }
+    if (state.reviewLoading) {
+        AnalyzingScreen(AnalysisLevel.BEGINNER) { vm.navigate(AppScreen.GAME) }
+        return
+    }
+    val review = state.gameReview.getOrNull(index)
+    LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { ScreenHeader("Game review", onBack = { vm.navigate(AppScreen.GAME) }, trailing = "BOTH SIDES") }
+        item {
+            ChessBoard(
+                review?.position ?: state.gamePosition, false, null, {}, {},
+                showCoordinates = state.settings.coordinates, lastMove = state.gameMoves.getOrNull(index)?.move?.let { it.from to it.to },
+                highContrastBoard = state.settings.highContrastBoard, boardDepth = state.settings.boardDepth,
+                pieceDepth = state.settings.pieceDepth, boardTheme = state.settings.boardTheme, pieceStyle = state.settings.pieceStyle,
+            )
+        }
+        item {
+            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(SurfaceDark)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { if (index > 0) index-- }, enabled = index > 0) { Icon(Icons.Rounded.SkipPrevious, "Previous move") }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("MOVE ${review?.ply ?: 0} OF ${state.gameReview.size}", style = MaterialTheme.typography.labelMedium, color = Accent)
+                        Text("${review?.side?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""}: ${review?.move ?: ""}", fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(onClick = { if (index < state.gameReview.lastIndex) index++ }, enabled = index < state.gameReview.lastIndex) { Icon(Icons.Rounded.SkipNext, "Next move") }
+                }
+            }
+        }
+        review?.let { item {
+            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(if (it.verdict == "Best move") Color(0xFFBCEBD8) else Color(0xFFFFE4A8), LightInk)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                    Text(it.verdict.uppercase(), style = MaterialTheme.typography.labelMedium)
+                    Text(if (it.verdict == "Best move") "Nice work — the coach agrees." else "Played ${it.move}. The coach preferred ${it.bestMove}.", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 7.dp))
+                }
+            }
+        } }
+        item { Spacer(Modifier.height(18.dp)) }
     }
 }
 
@@ -1414,7 +1619,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.2", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 3.0.0", "Stockfish 19 on supported ARM devices")
             }
         }
         item {

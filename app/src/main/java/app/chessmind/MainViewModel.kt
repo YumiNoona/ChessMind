@@ -11,6 +11,7 @@ import app.chessmind.data.PracticeStats
 import app.chessmind.data.SavedPosition
 import app.chessmind.data.UserSettings
 import app.chessmind.data.LocalProfile
+import app.chessmind.data.PlayerProgress
 import app.chessmind.domain.engine.AnalysisLevel
 import app.chessmind.domain.engine.AnalysisResult
 import app.chessmind.data.engine.HybridChessEngine
@@ -21,8 +22,16 @@ import app.chessmind.domain.model.Pgn
 import app.chessmind.domain.model.Position
 import app.chessmind.domain.model.Side
 import app.chessmind.domain.model.Square
+import app.chessmind.domain.model.Move
+import app.chessmind.domain.model.ChessRules
+import kotlin.random.Random
 
-enum class AppScreen { ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, HISTORY, SETTINGS }
+enum class AppScreen { ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS }
+
+enum class GameMode { AI, FRIEND }
+
+data class GameMoveRecord(val before: Position, val after: Position, val move: Move, val notation: String, val side: Side)
+data class GameReviewItem(val ply: Int, val side: Side, val move: String, val bestMove: String, val verdict: String, val position: Position)
 
 data class PracticePuzzle(val title: String, val subtitle: String, val fen: String, val solution: String, val hint: String)
 
@@ -47,6 +56,16 @@ data class AppUiState(
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val profile: LocalProfile = LocalProfile(),
+    val progress: PlayerProgress = PlayerProgress(),
+    val gameMode: GameMode = GameMode.AI,
+    val gamePosition: Position = Position.START,
+    val gameSelected: Square? = null,
+    val gameMoves: List<GameMoveRecord> = emptyList(),
+    val gameResult: String? = null,
+    val aiRating: Int = 425,
+    val aiThinking: Boolean = false,
+    val gameReview: List<GameReviewItem> = emptyList(),
+    val reviewLoading: Boolean = false,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,6 +81,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
             settings = store.settings(),
             profile = store.profile(),
+            progress = store.progress(),
             practicePosition = Fen.parse(puzzles.first().fen).getOrThrow(),
         )
     )
@@ -180,6 +200,125 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         store.saveProfile(profile)
         state = state.copy(profile = profile)
     }
+
+    fun startGame(mode: GameMode) {
+        val opponent = (state.progress.rating - Random.nextInt(50, 101)).coerceAtLeast(300)
+        state = state.copy(
+            screen = AppScreen.GAME, gameMode = mode, gamePosition = Position.START,
+            gameSelected = null, gameMoves = emptyList(), gameResult = null,
+            aiRating = opponent, aiThinking = false, gameReview = emptyList(), reviewLoading = false,
+            flipped = false,
+        )
+    }
+
+    fun tapGame(square: Square) {
+        if (state.gameResult != null || state.aiThinking) return
+        if (state.gameMode == GameMode.AI && state.gamePosition.sideToMove == Side.BLACK) return
+        val selected = state.gameSelected
+        if (selected == null) {
+            if (state.gamePosition[square]?.side == state.gamePosition.sideToMove) state = state.copy(gameSelected = square)
+            return
+        }
+        if (selected == square) { state = state.copy(gameSelected = null); return }
+        val legal = ChessRules.legalMoves(state.gamePosition)
+        val move = legal.firstOrNull { it.from == selected && it.to == square && (it.promotion == null || it.promotion == PieceType.QUEEN) }
+        if (move == null) { state = state.copy(gameSelected = null); return }
+        applyGameMove(move)
+        if (state.gameMode == GameMode.AI && state.gameResult == null) state = state.copy(aiThinking = true)
+    }
+
+    suspend fun playAiMove() {
+        if (!state.aiThinking || state.gameResult != null || state.gamePosition.sideToMove != Side.BLACK) return
+        val position = state.gamePosition
+        val level = when {
+            state.aiRating < 650 -> AnalysisLevel.BEGINNER
+            state.aiRating < 1000 -> AnalysisLevel.INTERMEDIATE
+            state.aiRating < 1500 -> AnalysisLevel.MASTER
+            else -> AnalysisLevel.GOD
+        }
+        val result = engine.analyze(position, level)
+        val legal = ChessRules.legalMoves(position)
+        val best = result.principalVariationUci.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
+        val accuracy = (.38 + state.aiRating / 2600.0).coerceIn(.48, .93)
+        val move = if (best != null && Random.nextDouble() < accuracy) best else humanLikeMove(position, legal, best)
+        if (move != null) applyGameMove(move)
+        state = state.copy(aiThinking = false)
+    }
+
+    fun resignGame() {
+        if (state.gameResult != null) return
+        finishGame(if (state.gameMode == GameMode.AI) "AI wins by resignation" else "${state.gamePosition.sideToMove.opposite().name.lowercase().replaceFirstChar { it.uppercase() }} wins by resignation")
+    }
+
+    suspend fun buildGameReview() {
+        if (state.gameMoves.isEmpty()) return
+        state = state.copy(screen = AppScreen.GAME_REVIEW, reviewLoading = true, gameReview = emptyList())
+        val reviews = state.gameMoves.mapIndexed { index, record ->
+            val answer = engine.analyze(record.before, AnalysisLevel.BEGINNER)
+            val verdict = if (normalizeMove(answer.bestMove) == normalizeMove(record.notation)) "Best move" else "Review this"
+            GameReviewItem(index + 1, record.side, record.notation, answer.bestMove, verdict, record.after)
+        }
+        state = state.copy(gameReview = reviews, reviewLoading = false)
+    }
+
+    private fun applyGameMove(move: Move) {
+        val before = state.gamePosition
+        val notation = ChessRules.notation(before, move)
+        val after = ChessRules.apply(before, move)
+        state = state.copy(
+            gamePosition = after, gameSelected = null,
+            gameMoves = state.gameMoves + GameMoveRecord(before, after, move, notation, before.sideToMove),
+        )
+        val legal = ChessRules.legalMoves(after)
+        if (legal.isEmpty()) {
+            val result = if (ChessRules.isInCheck(after, after.sideToMove)) {
+                "${before.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} wins by checkmate"
+            } else "Draw by stalemate"
+            finishGame(result)
+        }
+    }
+
+    private fun finishGame(result: String) {
+        var progress = state.progress
+        if (state.gameMode == GameMode.AI) {
+            val score = when {
+                result.startsWith("White wins") -> 1.0
+                result.startsWith("Draw") -> .5
+                else -> 0.0
+            }
+            val expected = 1.0 / (1.0 + Math.pow(10.0, (state.aiRating - progress.rating) / 400.0))
+            val change = (32 * (score - expected)).toInt()
+            progress = progress.copy(
+                rating = (progress.rating + change).coerceAtLeast(100), games = progress.games + 1,
+                wins = progress.wins + if (score == 1.0) 1 else 0,
+                draws = progress.draws + if (score == .5) 1 else 0,
+            )
+            store.saveProgress(progress)
+        }
+        state = state.copy(gameResult = result, aiThinking = false, progress = progress)
+    }
+
+    private fun humanLikeMove(position: Position, legal: List<Move>, best: Move?): Move? {
+        if (legal.isEmpty()) return null
+        val values = mapOf(PieceType.PAWN to 1, PieceType.KNIGHT to 3, PieceType.BISHOP to 3, PieceType.ROOK to 5, PieceType.QUEEN to 9, PieceType.KING to 0)
+        val ranked = legal.filterNot { it == best }.sortedByDescending { move ->
+            val capture = position[move.to]?.let { values[it.type] ?: 0 } ?: 0
+            val center = if (move.to.file in 2..5 && move.to.rank in 2..5) 1 else 0
+            capture * 10 + center + Random.nextInt(0, 8)
+        }
+        val pool = when { state.aiRating < 600 -> 8; state.aiRating < 1000 -> 5; else -> 3 }
+        return ranked.take(pool).randomOrNull() ?: best ?: legal.random()
+    }
+
+    private fun parseUciMove(uci: String): Move? {
+        if (uci.length !in 4..5) return null
+        val from = Square.parse(uci.substring(0, 2)) ?: return null
+        val to = Square.parse(uci.substring(2, 4)) ?: return null
+        val promotion = uci.getOrNull(4)?.let { symbol -> PieceType.entries.firstOrNull { it.fen == symbol.lowercaseChar() } }
+        return Move(from, to, promotion)
+    }
+
+    private fun normalizeMove(value: String) = value.replace("+", "").replace("#", "").trim()
 
     fun analyzeFrom(position: Position) {
         commitPosition(position)

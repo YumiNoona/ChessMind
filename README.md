@@ -2,7 +2,7 @@
 
 ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Current version: 2.0.2.** The app is usable end-to-end for camera/gallery capture, manual positions, local analysis, animated line exploration, and history. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
+> **Current version: 3.0.0.** The app now includes complete local chess matches against adaptive AI or a nearby friend, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
 
 ## What works
 
@@ -17,6 +17,11 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Strict FEN validation/import/export and common PGN import
 - Complete legal move generation, including check filtering, castling, en passant, and promotion
 - Four analysis presets: Beginner, Intermediate, Master, and God mode
+- Adaptive offline AI opponents rated slightly below the player
+- Local pass-and-play friend matches with legal move enforcement
+- Iron, Silver, Gold, Platinum, Diamond, Master, and Grandmaster leagues
+- Persistent points, games, wins, and draws stored only on device
+- Full-game review for both sides with best-move comparisons
 - Packaged Stockfish 19 UCI analysis on ARM devices, with a cancellable built-in engine fallback
 - MultiPV candidate moves, evaluation, depth, principal variation, and human-readable reasons
 - Interactive analysis board with previous/next line controls, free legal play, reset, and re-analysis
@@ -86,7 +91,7 @@ Core features run offline. Positions, statistics, and history use app-private lo
 
 ## Known limitation
 
-Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 2.0.2 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
+Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 3.0.0 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
 
 ## Contributing
 
