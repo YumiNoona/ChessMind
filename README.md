@@ -2,7 +2,7 @@
 
 ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Current version: 2.0.0.** The app is usable end-to-end for camera/gallery capture, manual positions, FEN/PGN imports, local analysis, interactive line exploration, and history. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
+> **Current version: 2.0.1.** The app is usable end-to-end for camera/gallery capture, manual positions, FEN/PGN imports, local analysis, interactive line exploration, and history. Automatic piece recognition is deliberately labelled as unavailable until a suitably accurate on-device model is validated; ChessMind never invents a detected position.
 
 ## What works
 
@@ -86,7 +86,7 @@ Core features run offline. Positions, statistics, and history use app-private lo
 
 ## Known limitation
 
-Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 2.0.0 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
+Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 2.0.1 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
 
 ## Contributing
 

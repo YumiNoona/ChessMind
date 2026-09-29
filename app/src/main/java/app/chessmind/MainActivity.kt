@@ -442,7 +442,10 @@ private fun HomeScreen(vm: MainViewModel) {
 private fun HomeActionCard(title: String, subtitle: String, art: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = modifier.height(170.dp).shadow(10.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.32f)), shape = RoundedCornerShape(27.dp), colors = CardDefaults.cardColors(containerColor = color, contentColor = Color.White), elevation = CardDefaults.cardElevation(3.dp)) {
         Box(Modifier.fillMaxSize()) {
-            Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(126.dp).align(Alignment.TopEnd).offset(x = 24.dp, y = (-8).dp))
+            Image(
+                painterResource(art), null, contentScale = ContentScale.Fit,
+                modifier = Modifier.width(205.dp).height(138.dp).align(Alignment.TopCenter).offset(y = (-17).dp),
+            )
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.78f))
@@ -850,15 +853,17 @@ private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifi
     val light = piece.side == Side.WHITE
     val glyph = Piece(piece.type, Side.BLACK).symbol
     val foreground = if (light) Color(0xFFFFF3DF) else Color(0xFF172331)
-    val shadow = if (light) Color(0xFF8A674F) else Color.Black
+    val edge = if (light) Color(0xFF9C6B49) else Color(0xFF5D7188)
+    val shadow = if (light) Color(0xFF6D4934) else Color.Black
     Box(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }, contentAlignment = Alignment.Center) {
-        if (depth) Text(
-            glyph, fontFamily = FontFamily.Serif, fontSize = 43.sp, color = shadow.copy(.62f),
-            modifier = Modifier.offset(y = 3.dp).scale(1.03f),
-        )
+        if (depth) Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = shadow.copy(.62f), modifier = Modifier.offset(y = 2.dp))
+        listOf((-1).dp to 0.dp, 1.dp to 0.dp, 0.dp to (-1).dp, 0.dp to 1.dp).forEach { (x, y) ->
+            Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = edge.copy(if (light) .78f else .42f), modifier = Modifier.offset(x, y))
+        }
         Text(
-            glyph, fontFamily = FontFamily.Serif, fontSize = 43.sp, color = foreground,
-            style = TextStyle(shadow = Shadow(if (light) Color.White.copy(.7f) else Color.White.copy(.18f), Offset(-1f, -1f), if (depth) 2.2f else .5f)),
+            glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = foreground,
+            modifier = Modifier.offset(y = (-1).dp),
+            style = TextStyle(shadow = Shadow(if (light) Color.White.copy(.82f) else Color.White.copy(.2f), Offset(-1f, -1f), if (depth) 1.8f else .4f)),
         )
     }
 }
@@ -1320,7 +1325,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.0", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 2.0.1", "Stockfish 19 on supported ARM devices")
             }
         }
         item {
