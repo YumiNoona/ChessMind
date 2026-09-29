@@ -841,7 +841,9 @@ private fun ChessBoard(
 @Composable
 private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier, style: Int = 0) {
     val light = piece.side == Side.WHITE
-    val glyph = if (style == 2) piece.symbol else Piece(piece.type, Side.BLACK).symbol
+    // Always draw the solid chess glyph. The Unicode "white" symbols are
+    // outlines, so tinting them ivory still leaves the pieces looking hollow.
+    val glyph = Piece(piece.type, Side.BLACK).symbol
     val foreground = when (style) {
         1 -> if (light) Color(0xFFFFFCF2) else Color(0xFF222222)
         2 -> if (light) Color(0xFFFFF8E8) else Color(0xFF15263A)
