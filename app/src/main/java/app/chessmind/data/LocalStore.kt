@@ -31,6 +31,9 @@ data class UserSettings(
     val haptics: Boolean = true,
     val animations: Boolean = true,
     val highContrastBoard: Boolean = false,
+    val darkMode: Boolean = false,
+    val boardDepth: Boolean = false,
+    val pieceDepth: Boolean = true,
 )
 
 data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
@@ -82,6 +85,9 @@ class LocalStore(context: Context) {
         haptics = preferences.getBoolean("setting_haptics", true),
         animations = preferences.getBoolean("setting_animations", true),
         highContrastBoard = preferences.getBoolean("setting_high_contrast", false),
+        darkMode = preferences.getBoolean("setting_dark_mode", false),
+        boardDepth = preferences.getBoolean("setting_board_depth", false),
+        pieceDepth = preferences.getBoolean("setting_piece_depth", true),
     )
 
     fun saveSettings(value: UserSettings) = preferences.edit {
@@ -90,6 +96,9 @@ class LocalStore(context: Context) {
         putBoolean("setting_haptics", value.haptics)
         putBoolean("setting_animations", value.animations)
         putBoolean("setting_high_contrast", value.highContrastBoard)
+        putBoolean("setting_dark_mode", value.darkMode)
+        putBoolean("setting_board_depth", value.boardDepth)
+        putBoolean("setting_piece_depth", value.pieceDepth)
     }
 
     fun profile(): LocalProfile = LocalProfile(
@@ -124,7 +133,9 @@ class LocalStore(context: Context) {
             .put("streak", stats().streak).put("bestStreak", stats().bestStreak))
         .put("settings", JSONObject().put("coordinates", settings().coordinates)
             .put("legalHints", settings().legalHints).put("haptics", settings().haptics)
-            .put("animations", settings().animations).put("highContrastBoard", settings().highContrastBoard))
+            .put("animations", settings().animations).put("highContrastBoard", settings().highContrastBoard)
+            .put("darkMode", settings().darkMode).put("boardDepth", settings().boardDepth)
+            .put("pieceDepth", settings().pieceDepth))
         .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .toString(2)
 
@@ -146,6 +157,9 @@ class LocalStore(context: Context) {
                 putBoolean("setting_haptics", settings.optBoolean("haptics", true))
                 putBoolean("setting_animations", settings.optBoolean("animations", true))
                 putBoolean("setting_high_contrast", settings.optBoolean("highContrastBoard", false))
+                putBoolean("setting_dark_mode", settings.optBoolean("darkMode", false))
+                putBoolean("setting_board_depth", settings.optBoolean("boardDepth", false))
+                putBoolean("setting_piece_depth", settings.optBoolean("pieceDepth", true))
             }
             if (profile != null) {
                 putString("profile_name", profile.optString("name", "Chess player"))

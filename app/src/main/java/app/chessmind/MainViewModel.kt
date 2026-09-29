@@ -212,7 +212,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportData(): String = store.exportJson()
     fun importData(value: String): Boolean = runCatching { store.importJson(value) }.fold(
         onSuccess = {
-            state = state.copy(savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(), fenError = null)
+            state = state.copy(
+                savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
+                settings = store.settings(), profile = store.profile(), fenError = null,
+            )
             true
         },
         onFailure = { state = state.copy(fenError = it.message ?: "Could not import backup"); false },

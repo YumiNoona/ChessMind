@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -84,6 +85,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -101,12 +103,25 @@ import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.ViewInAr
+import androidx.compose.material.icons.rounded.GridOn
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.Analytics
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -127,6 +142,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
@@ -159,46 +176,78 @@ import app.chessmind.domain.model.Square
 import app.chessmind.domain.model.ChessRules
 import app.chessmind.domain.model.Move
 
-private val Ink = Color(0xFF102E4F)
+private val LightInk = Color(0xFF102E4F)
 private val SkyBackground = Color(0xFFE8F4FF)
-private val SurfaceDark = Color(0xFFF8FBFF)
-private val SurfaceLight = Color(0xFFFFFFFF)
-private val Accent = Color(0xFF356DFF)
+private val NightBackground = Color(0xFF0D1828)
+private val NightSurface = Color(0xFF17263A)
+private val NightSurfaceHigh = Color(0xFF20344C)
+private val BrandBlue = Color(0xFF356DFF)
 private val Sunny = Color(0xFFFFC85A)
 private val Coral = Color(0xFFFF8D78)
 private val Purple = Color(0xFF9275E8)
-private val Muted = Color(0xFF6F87A3)
 private val BoardLight = Color(0xFFF4D9BC)
 private val BoardDark = Color(0xFFC88F6A)
-private val Espresso = Ink
 private val SpaceGrotesk = FontFamily(Font(R.font.space_grotesk))
 private val JetBrainsMono = FontFamily(Font(R.font.jetbrains_mono))
+
+private val Ink: Color @Composable get() = MaterialTheme.colorScheme.onBackground
+private val Espresso: Color @Composable get() = MaterialTheme.colorScheme.onBackground
+private val SurfaceDark: Color @Composable get() = MaterialTheme.colorScheme.surface
+private val SurfaceLight: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+private val Accent: Color @Composable get() = MaterialTheme.colorScheme.primary
+private val Muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true
-            isAppearanceLightNavigationBars = true
-        }
-        setContent { ChessMindTheme { CompositionLocalProvider(LocalContentColor provides Ink) { ChessMindApp() } } }
+        setContent { ChessMindRoot() }
     }
 }
 
 @Composable
-private fun ChessMindTheme(content: @Composable () -> Unit) {
+private fun ChessMindRoot(vm: MainViewModel = viewModel()) {
+    val darkMode = vm.state.settings.darkMode
+    val context = LocalContext.current
+    SideEffect {
+        val window = (context as MainActivity).window
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !darkMode
+            isAppearanceLightNavigationBars = !darkMode
+        }
+    }
+    ChessMindTheme(darkMode) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+            ChessMindApp(vm)
+        }
+    }
+}
+
+@Composable
+private fun ChessMindTheme(darkMode: Boolean, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Accent,
+        colorScheme = if (darkMode) darkColorScheme(
+            primary = Color(0xFF82A8FF),
+            background = NightBackground,
+            surface = NightSurface,
+            surfaceVariant = NightSurfaceHigh,
+            onPrimary = NightBackground,
+            secondary = Coral,
+            tertiary = Sunny,
+            onBackground = Color(0xFFF2F7FF),
+            onSurface = Color(0xFFF2F7FF),
+            onSurfaceVariant = Color(0xFFAFC1D6),
+        ) else lightColorScheme(
+            primary = BrandBlue,
             background = SkyBackground,
-            surface = SurfaceDark,
+            surface = Color(0xFFF8FBFF),
             onPrimary = Color.White,
             secondary = Coral,
             tertiary = Sunny,
-            surfaceVariant = SurfaceLight,
-            onBackground = Ink,
-            onSurface = Ink,
+            surfaceVariant = Color.White,
+            onBackground = LightInk,
+            onSurface = LightInk,
+            onSurfaceVariant = Color(0xFF6F87A3),
         ),
         typography = androidx.compose.material3.Typography(
             displaySmall = TextStyle(fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold, fontSize = 40.sp, lineHeight = 43.sp),
@@ -229,10 +278,10 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
             }
         )
     }
-    Box(Modifier.fillMaxSize().background(SkyBackground)) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Color.White.copy(.56f), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
-            drawCircle(Accent.copy(.045f), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
+            drawCircle(Color.White.copy(if (state.settings.darkMode) .025f else .56f), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
+            drawCircle(BrandBlue.copy(if (state.settings.darkMode) .09f else .045f), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
         }
         Scaffold(
             containerColor = Color.Transparent,
@@ -270,6 +319,7 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
 @Composable
 private fun OnboardingScreen(vm: MainViewModel) {
     var page by remember { mutableStateOf(0) }
+    val accent = Accent
     val content = listOf(
         Triple("SCAN", "Point. Capture. Solve.", "Use your camera or choose a board image from your gallery."),
         Triple("ANALYZE", "Find a stronger move.", "Choose a learning level and get legal candidates, lines, and grounded explanations."),
@@ -277,7 +327,7 @@ private fun OnboardingScreen(vm: MainViewModel) {
     )[page]
     Box(Modifier.fillMaxSize().padding(24.dp).statusBarsPadding()) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(listOf(Coral, Purple, Accent)[page].copy(.18f), radius = size.width * .75f, center = Offset(size.width * .82f, size.height * .22f))
+            drawCircle(listOf(Coral, Purple, accent)[page].copy(.18f), radius = size.width * .75f, center = Offset(size.width * .82f, size.height * .22f))
         }
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -317,7 +367,7 @@ private fun HomeScreen(vm: MainViewModel) {
                 IconButton(onClick = { vm.navigate(AppScreen.PROFILE) }, modifier = Modifier.size(52.dp)) {
                     UserAvatar(vm.state.profile.imageUri, vm.state.profile.name, Modifier.size(48.dp))
                 }
-                Text("CHESSMIND", style = MaterialTheme.typography.labelMedium, color = Muted)
+                Spacer(Modifier.width(40.dp))
                 IconButton(onClick = { vm.navigate(AppScreen.SETTINGS) }) { Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Ink) }
             }
         }
@@ -434,6 +484,7 @@ private fun ProfileScreen(vm: MainViewModel) {
 
 @Composable
 private fun ScannerScreen(vm: MainViewModel) {
+    val accent = Accent
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var granted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
@@ -475,7 +526,7 @@ private fun ScannerScreen(vm: MainViewModel) {
                     Offset(left + side, top) to Offset(left + side - corner, top), Offset(left + side, top) to Offset(left + side, top + corner),
                     Offset(left, top + side) to Offset(left + corner, top + side), Offset(left, top + side) to Offset(left, top + side - corner),
                     Offset(left + side, top + side) to Offset(left + side - corner, top + side), Offset(left + side, top + side) to Offset(left + side, top + side - corner),
-                ).forEach { (start, end) -> drawLine(Accent, start, end, width, StrokeCap.Round) }
+                ).forEach { (start, end) -> drawLine(accent, start, end, width, StrokeCap.Round) }
             }
             Column(Modifier.fillMaxSize().padding(20.dp).statusBarsPadding().navigationBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -585,6 +636,8 @@ private fun SetupScreen(vm: MainViewModel) {
             onLongPressFallback = vm::erase,
             showCoordinates = state.settings.coordinates,
             highContrastBoard = state.settings.highContrastBoard,
+            boardDepth = state.settings.boardDepth,
+            pieceDepth = state.settings.pieceDepth,
             haptics = state.settings.haptics,
         )
         Spacer(Modifier.height(12.dp))
@@ -649,23 +702,26 @@ private fun PiecePalette(selected: Piece?, onSelect: (Piece?) -> Unit) {
         Spacer(Modifier.height(6.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             item {
-                PaletteCell("↕", selected == null) { onSelect(null) }
+                PaletteCell(null, selected == null) { onSelect(null) }
             }
             items(Side.entries.flatMap { side -> PieceType.entries.map { Piece(it, side) } }) { piece ->
-                PaletteCell(piece.symbol, selected == piece) { onSelect(piece) }
+                PaletteCell(piece, selected == piece) { onSelect(piece) }
             }
         }
     }
 }
 
 @Composable
-private fun PaletteCell(text: String, active: Boolean, onClick: () -> Unit) {
+private fun PaletteCell(piece: Piece?, active: Boolean, onClick: () -> Unit) {
     Box(
         Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
             .background(if (active) Accent else SurfaceLight)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(text, fontSize = 27.sp, color = Ink) }
+    ) {
+        if (piece == null) Text("↕", fontSize = 25.sp, color = if (active) Color.White else Ink)
+        else ChessPiece(piece, depth = true, Modifier.size(38.dp).padding(3.dp))
+    }
 }
 
 @Composable
@@ -681,13 +737,17 @@ private fun ChessBoard(
     lastMove: Pair<Square, Square>? = null,
     haptics: Boolean = false,
     highContrastBoard: Boolean = false,
+    boardDepth: Boolean = false,
+    pieceDepth: Boolean = true,
 ) {
     val haptic = LocalHapticFeedback.current
     val lightColor = if (highContrastBoard) Color(0xFFF4F0DF) else BoardLight
     val darkColor = if (highContrastBoard) Color(0xFF6E8060) else BoardDark
     Box(
-        Modifier.fillMaxWidth().aspectRatio(1f).shadow(18.dp, RoundedCornerShape(26.dp), spotColor = Color.Black.copy(.34f))
-            .clip(RoundedCornerShape(26.dp)).background(Espresso).padding(8.dp),
+        Modifier.fillMaxWidth().aspectRatio(1f)
+            .graphicsLayer { if (boardDepth) { rotationX = 2.5f; cameraDistance = 18f * density } }
+            .shadow(if (boardDepth) 24.dp else 12.dp, RoundedCornerShape(26.dp), spotColor = Color.Black.copy(.38f))
+            .clip(RoundedCornerShape(26.dp)).background(Color(0xFF17324D)).padding(if (boardDepth) 9.dp else 7.dp),
     ) {
         Column(Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))) {
             for (displayRank in 0..7) {
@@ -700,13 +760,24 @@ private fun ChessBoard(
                         val isSelected = selected == square
                         val isLastMove = square == lastMove?.first || square == lastMove?.second
                         val isHint = square in hintSquares
+                        val squareColor = if (isSelected) Coral else if (isLastMove) Sunny else if (light) lightColor else darkColor
+                        val squareShade = Color(
+                            red = squareColor.red * .82f,
+                            green = squareColor.green * .82f,
+                            blue = squareColor.blue * .82f,
+                            alpha = 1f,
+                        )
                         Box(
                             Modifier.weight(1f).fillMaxHeight()
                                 .semantics {
                                     val piece = position[square]
                                     contentDescription = if (piece == null) "${square.algebraic}, empty" else "${square.algebraic}, ${piece.side.name.lowercase()} ${piece.type.name.lowercase()}"
                                 }
-                                .background(if (isSelected) Coral else if (isLastMove) Sunny else if (light) lightColor else darkColor)
+                                .background(
+                                    if (boardDepth) Brush.verticalGradient(
+                                        listOf(squareColor.copy(alpha = 1f), squareColor, squareShade),
+                                    ) else Brush.linearGradient(listOf(squareColor, squareColor)),
+                                )
                                 .combinedClickable(
                                     onClick = { if (haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onTap(square) },
                                     onLongClick = { if (haptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress); onLongPressFallback(square) },
@@ -714,13 +785,7 @@ private fun ChessBoard(
                             contentAlignment = Alignment.Center,
                         ) {
                             position[square]?.let { piece ->
-                                Text(
-                                    piece.symbol,
-                                    fontFamily = FontFamily.Serif,
-                                    fontSize = 35.sp,
-                                    color = if (piece.side == Side.WHITE) Color(0xFFFFF8EA) else Color(0xFF261C17),
-                                    style = TextStyle(shadow = Shadow(Color.Black.copy(.28f), Offset(0f, 2f), 2.2f)),
-                                )
+                                ChessPiece(piece, pieceDepth, Modifier.fillMaxSize().padding(4.dp))
                             }
                             if (isHint) Box(Modifier.size(if (position[square] == null) 10.dp else 36.dp).clip(CircleShape).background(Espresso.copy(if (position[square] == null) .48f else .08f)).then(if (position[square] == null) Modifier else Modifier.border(3.dp, Espresso.copy(.52f), CircleShape)))
                             if (showCoordinates && displayFile == 0) Text(
@@ -737,6 +802,95 @@ private fun ChessBoard(
             }
         }
     }
+}
+
+@Composable
+private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier) {
+    val light = piece.side == Side.WHITE
+    Canvas(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }) {
+        val shadow = if (light) Color(0xFF745C49).copy(.5f) else Color.Black.copy(.58f)
+        translate(0f, size.height * if (depth) .055f else .025f) {
+            drawPieceSilhouette(piece.type, Brush.linearGradient(listOf(shadow, shadow)))
+        }
+        val colors = if (light) {
+            if (depth) listOf(Color.White, Color(0xFFFFE9CC), Color(0xFFD7B48B)) else listOf(Color(0xFFFFF4E2), Color(0xFFFFF4E2))
+        } else {
+            if (depth) listOf(Color(0xFF536579), Color(0xFF1C2734), Color(0xFF080C12)) else listOf(Color(0xFF182330), Color(0xFF182330))
+        }
+        drawPieceSilhouette(piece.type, Brush.verticalGradient(colors))
+        if (depth) {
+            drawCircle(
+                color = Color.White.copy(if (light) .42f else .18f),
+                radius = size.width * .045f,
+                center = Offset(size.width * .43f, size.height * .24f),
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawPieceSilhouette(type: PieceType, brush: Brush) {
+    val w = size.width
+    val h = size.height
+    fun body(topWidth: Float = .25f, shoulderWidth: Float = .42f) = Path().apply {
+        moveTo(w * (0.5f - topWidth / 2), h * .39f)
+        lineTo(w * (0.5f + topWidth / 2), h * .39f)
+        cubicTo(w * .57f, h * .54f, w * (0.5f + shoulderWidth / 2), h * .62f, w * .72f, h * .75f)
+        lineTo(w * .28f, h * .75f)
+        cubicTo(w * (0.5f - shoulderWidth / 2), h * .62f, w * .43f, h * .54f, w * (0.5f - topWidth / 2), h * .39f)
+        close()
+    }
+    when (type) {
+        PieceType.PAWN -> {
+            drawCircle(brush, w * .145f, Offset(w * .5f, h * .27f))
+            drawPath(body(.23f, .35f), brush)
+        }
+        PieceType.ROOK -> {
+            val crown = Path().apply {
+                moveTo(w * .27f, h * .16f); lineTo(w * .39f, h * .16f); lineTo(w * .39f, h * .27f)
+                lineTo(w * .47f, h * .27f); lineTo(w * .47f, h * .16f); lineTo(w * .59f, h * .16f)
+                lineTo(w * .59f, h * .27f); lineTo(w * .71f, h * .27f); lineTo(w * .67f, h * .4f)
+                lineTo(w * .31f, h * .4f); close()
+            }
+            drawPath(crown, brush); drawPath(body(.28f, .4f), brush)
+        }
+        PieceType.KNIGHT -> {
+            val horse = Path().apply {
+                moveTo(w * .3f, h * .72f); cubicTo(w * .35f, h * .58f, w * .31f, h * .48f, w * .4f, h * .39f)
+                lineTo(w * .34f, h * .18f); lineTo(w * .53f, h * .26f); lineTo(w * .65f, h * .22f)
+                cubicTo(w * .78f, h * .38f, w * .68f, h * .55f, w * .55f, h * .55f)
+                lineTo(w * .47f, h * .72f); close()
+            }
+            drawPath(horse, brush)
+            drawCircle(Color.White.copy(.52f), w * .025f, Offset(w * .57f, h * .33f))
+        }
+        PieceType.BISHOP -> {
+            val head = Path().apply {
+                moveTo(w * .5f, h * .13f); cubicTo(w * .34f, h * .27f, w * .35f, h * .38f, w * .5f, h * .45f)
+                cubicTo(w * .65f, h * .38f, w * .66f, h * .27f, w * .5f, h * .13f); close()
+            }
+            drawPath(head, brush); drawPath(body(.2f, .4f), brush)
+            drawLine(Color.White.copy(.5f), Offset(w * .48f, h * .22f), Offset(w * .56f, h * .34f), w * .035f, cap = StrokeCap.Round)
+        }
+        PieceType.QUEEN -> {
+            listOf(.31f, .5f, .69f).forEachIndexed { index, x ->
+                drawCircle(brush, w * .065f, Offset(w * x, h * if (index == 1) .13f else .19f))
+            }
+            val crown = Path().apply {
+                moveTo(w * .29f, h * .23f); lineTo(w * .4f, h * .36f); lineTo(w * .5f, h * .2f)
+                lineTo(w * .6f, h * .36f); lineTo(w * .71f, h * .23f); lineTo(w * .65f, h * .43f)
+                lineTo(w * .35f, h * .43f); close()
+            }
+            drawPath(crown, brush); drawPath(body(.25f, .43f), brush)
+        }
+        PieceType.KING -> {
+            drawRoundRect(brush, Offset(w * .46f, h * .1f), Size(w * .08f, h * .25f), CornerRadius(w * .03f))
+            drawRoundRect(brush, Offset(w * .38f, h * .17f), Size(w * .24f, h * .08f), CornerRadius(w * .03f))
+            drawCircle(brush, w * .13f, Offset(w * .5f, h * .38f))
+            drawPath(body(.24f, .43f), brush)
+        }
+    }
+    drawRoundRect(brush, Offset(w * .22f, h * .7f), Size(w * .56f, h * .11f), CornerRadius(w * .055f))
+    drawRoundRect(brush, Offset(w * .16f, h * .79f), Size(w * .68f, h * .12f), CornerRadius(w * .06f))
 }
 
 @Composable
@@ -885,6 +1039,8 @@ private fun AnalysisScreen(vm: MainViewModel) {
                 lastMove = lastMove?.let { it.from to it.to },
                 haptics = state.settings.haptics,
                 highContrastBoard = state.settings.highContrastBoard,
+                boardDepth = state.settings.boardDepth,
+                pieceDepth = state.settings.pieceDepth,
             )
         }
         item {
@@ -1026,6 +1182,8 @@ private fun PracticeScreen(vm: MainViewModel) {
                 hintSquares = hints,
                 haptics = state.settings.haptics,
                 highContrastBoard = state.settings.highContrastBoard,
+                boardDepth = state.settings.boardDepth,
+                pieceDepth = state.settings.pieceDepth,
             )
         }
         item {
@@ -1132,35 +1290,57 @@ private fun SettingsScreen(vm: MainViewModel) {
                 .getOrNull()?.let(vm::importData)
         }
     }
-    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 0.dp, bottom = 36.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { ScreenHeader("Settings", onBack = { vm.navigate(AppScreen.HOME) }) }
         item {
-            GlassCard {
-                Text("APPEARANCE", color = Accent, fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
-                SettingToggle("Animations", "Fast screen transitions", settings.animations) { vm.updateSettings(settings.copy(animations = it)) }
-                SettingToggle("High-contrast board", "Brighter neutral squares", settings.highContrastBoard) { vm.updateSettings(settings.copy(highContrastBoard = it)) }
+            Card(
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = Accent),
+                modifier = Modifier.fillMaxWidth().height(132.dp),
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        drawCircle(Color.White.copy(.13f), size.width * .34f, Offset(size.width * .94f, size.height * .05f))
+                        drawCircle(Sunny.copy(.28f), size.width * .18f, Offset(size.width * .78f, size.height * .92f))
+                    }
+                    Column(Modifier.padding(22.dp).width(220.dp)) {
+                        Text("MAKE IT YOURS", color = Sunny, style = MaterialTheme.typography.labelMedium)
+                        Text("A board that feels like you", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 7.dp))
+                    }
+                    Icon(Icons.Rounded.Settings, null, tint = Color.White.copy(.92f), modifier = Modifier.align(Alignment.CenterEnd).offset(x = 14.dp).size(104.dp))
+                    Icon(Icons.Rounded.AutoAwesome, null, tint = Sunny, modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp).size(28.dp))
+                }
             }
         }
         item {
-            GlassCard {
-                Text("BOARD", color = Accent, fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
-                SettingToggle("Coordinates", "Show files and ranks", settings.coordinates) { vm.updateSettings(settings.copy(coordinates = it)) }
-                SettingToggle("Legal move hints", "Highlight destinations while exploring", settings.legalHints) { vm.updateSettings(settings.copy(legalHints = it)) }
-                SettingToggle("Haptic feedback", "Touch confirmation on board", settings.haptics) { vm.updateSettings(settings.copy(haptics = it)) }
+            SettingsSection("Appearance", Icons.Rounded.Palette) {
+                SettingChoice("Theme", Icons.Rounded.LightMode, if (settings.darkMode) "Dark" else "Light") {
+                    ChoicePill("Light", !settings.darkMode) { vm.updateSettings(settings.copy(darkMode = false)) }
+                    ChoicePill("Dark", settings.darkMode) { vm.updateSettings(settings.copy(darkMode = true)) }
+                }
+                SettingChoice("Board style", Icons.Rounded.GridOn, if (settings.boardDepth) "3D depth" else "2D flat") {
+                    ChoicePill("2D", !settings.boardDepth) { vm.updateSettings(settings.copy(boardDepth = false)) }
+                    ChoicePill("3D", settings.boardDepth) { vm.updateSettings(settings.copy(boardDepth = true)) }
+                }
+                SettingChoice("Piece style", Icons.Rounded.ViewInAr, if (settings.pieceDepth) "3D sculpted" else "2D classic") {
+                    ChoicePill("2D", !settings.pieceDepth) { vm.updateSettings(settings.copy(pieceDepth = false)) }
+                    ChoicePill("3D", settings.pieceDepth) { vm.updateSettings(settings.copy(pieceDepth = true)) }
+                }
+                SettingToggle(Icons.Rounded.AutoAwesome, "Animations", "Smooth and responsive", settings.animations) { vm.updateSettings(settings.copy(animations = it)) }
             }
         }
         item {
-            GlassCard {
-                Text("ANALYSIS", color = Accent, fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
-                Text("Adaptive engine presets", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
-                Text("250 ms Beginner · 800 ms Intermediate · 2.5 s Master · 6 s God mode. MultiPV and device-safe thread/hash limits are applied automatically.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
+            SettingsSection("Board controls", Icons.Rounded.TouchApp) {
+                SettingToggle(Icons.Rounded.GridOn, "Coordinates", "Show files and ranks", settings.coordinates) { vm.updateSettings(settings.copy(coordinates = it)) }
+                SettingToggle(Icons.Rounded.Visibility, "Legal move hints", "Reveal valid destinations", settings.legalHints) { vm.updateSettings(settings.copy(legalHints = it)) }
+                SettingToggle(Icons.Rounded.Vibration, "Haptic feedback", "A soft response on every move", settings.haptics) { vm.updateSettings(settings.copy(haptics = it)) }
+                SettingToggle(Icons.Rounded.AutoAwesome, "High contrast", "Extra separation between squares", settings.highContrastBoard) { vm.updateSettings(settings.copy(highContrastBoard = it)) }
             }
         }
         item {
-            GlassCard {
-                Text("ABOUT", style = MaterialTheme.typography.labelMedium, color = Accent)
-                Text("ChessMind 1.0.2", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
-                Text("Stockfish 19 on supported ARM devices · ChessMind fallback engine on other devices.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
+            SettingsSection("Analysis", Icons.Rounded.Analytics) {
+                SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 1.0.2", "Stockfish 19 on supported ARM devices")
             }
         }
         item {
@@ -1189,13 +1369,76 @@ private fun SettingsScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun SettingToggle(title: String, subtitle: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun SettingsSection(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = Accent, modifier = Modifier.size(25.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.height(6.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingChoice(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    choices: @Composable RowScope.() -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = Muted, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(value, color = Muted, fontSize = 11.sp)
+        }
+        Row(
+            Modifier.clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.background.copy(.72f)).padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp), content = choices,
+        )
+    }
+}
+
+@Composable
+private fun ChoicePill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) Accent else Color.Transparent,
+        contentColor = if (selected) Color.White else Muted,
+        shape = RoundedCornerShape(11.dp),
+        shadowElevation = if (selected) 3.dp else 0.dp,
+    ) { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
+}
+
+@Composable
+private fun SettingToggle(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = Muted, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = Muted, fontSize = 12.sp)
         }
         Switch(checked = checked, onCheckedChange = onChecked)
+    }
+}
+
+@Composable
+private fun SettingInfo(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    Row(Modifier.fillMaxWidth().padding(top = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = Muted, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(12.dp))
+        Column { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, color = Muted, fontSize = 12.sp) }
     }
 }
 
