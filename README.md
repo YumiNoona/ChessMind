@@ -2,7 +2,7 @@
 
 ChessMind is a privacy-first Android chess position solver and learning companion. It is designed to answer both **“What should I play?”** and **“Why?”** without requiring an account, server, or internet connection.
 
-> **Release status:** v1.0.0 is the first foundation release. Manual position setup, FEN handling, local legal-move analysis, and the premium Compose interface are functional. Camera recognition and packaged Stockfish analysis remain on the roadmap and are not simulated or misrepresented.
+> **Release status:** v1.01 introduces the redesigned playful bento interface and three-icon floating dock. Manual position setup, FEN handling, and local legal-move analysis are functional. Camera recognition and packaged Stockfish analysis remain on the roadmap and are not simulated or misrepresented.
 
 ## Features
 
