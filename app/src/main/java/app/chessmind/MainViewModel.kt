@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.chessmind.data.HistoryEntry
 import app.chessmind.data.LocalStore
+import app.chessmind.data.MatchHistoryEntry
 import app.chessmind.data.PracticeStats
 import app.chessmind.data.SavedPosition
 import app.chessmind.data.UserSettings
@@ -27,6 +28,7 @@ import app.chessmind.domain.model.Square
 import app.chessmind.domain.model.Move
 import app.chessmind.domain.model.ChessRules
 import kotlin.random.Random
+import kotlin.math.roundToInt
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 
@@ -51,6 +53,7 @@ data class AppUiState(
     val importedImage: String? = null,
     val savedPositions: List<SavedPosition> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
+    val matchHistory: List<MatchHistoryEntry> = emptyList(),
     val practiceStats: PracticeStats = PracticeStats(),
     val puzzleIndex: Int = 0,
     val practicePosition: Position = Position.START,
@@ -93,7 +96,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var state by mutableStateOf(
         AppUiState(
             screen = AppScreen.SPLASH,
-            savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
+            savedPositions = store.saved(), history = store.history(), matchHistory = store.matchHistory(), practiceStats = store.stats(),
             settings = store.settings(),
             profile = store.profile(),
             progress = store.progress(),
@@ -234,19 +237,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startGame(mode: GameMode) {
         val playerRating = state.progress.rating
-        val leagueOpponent = when {
-            playerRating < 600 -> playerRating - Random.nextInt(170, 251)
-            playerRating < 800 -> playerRating - Random.nextInt(110, 181)
-            playerRating < 1_000 -> playerRating - Random.nextInt(80, 141)
-            playerRating < 1_300 -> playerRating - Random.nextInt(60, 111)
-            playerRating < 1_600 -> playerRating - Random.nextInt(45, 91)
-            else -> playerRating - Random.nextInt(25, 71)
+        val leagueJitter = when {
+            playerRating < 700 -> 18
+            playerRating < 1_300 -> 26
+            else -> 34
         }
-        val opponent = (leagueOpponent + when (state.settings.aiStrength) {
-            -1 -> -100
-            1 -> 90
-            else -> 0
-        }).coerceAtLeast(150)
+        val opponent = (playerRating + when (state.settings.aiStrength) {
+            -1 -> -115
+            1 -> 45
+            else -> -45
+        } + Random.nextInt(-leagueJitter, leagueJitter + 1)).coerceIn(180, 2_400)
         val clockSeconds = state.selectedTimeMinutes * 60
         state = state.copy(
             screen = AppScreen.GAME, gameMode = mode, gamePosition = Position.START,
@@ -303,34 +303,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!state.aiThinking || state.gameResult != null || state.gamePosition.sideToMove != Side.BLACK) return
         val position = state.gamePosition
         val level = when {
-            state.aiRating < 650 -> AnalysisLevel.BEGINNER
-            state.aiRating < 1000 -> AnalysisLevel.INTERMEDIATE
-            state.aiRating < 1500 -> AnalysisLevel.MASTER
+            state.aiRating < 750 -> AnalysisLevel.BEGINNER
+            state.aiRating < 1_250 -> AnalysisLevel.INTERMEDIATE
+            state.aiRating < 1_800 -> AnalysisLevel.MASTER
             else -> AnalysisLevel.GOD
         }
         val result = withTimeoutOrNull(3_500) { engine.analyze(position, level) }
         if (result == null) engine.stop()
         val legal = ChessRules.legalMoves(position)
         val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
-        val leagueAccuracy = when {
-            state.aiRating < 400 -> .12
-            state.aiRating < 600 -> .22
-            state.aiRating < 800 -> .34
-            state.aiRating < 1_000 -> .46
-            state.aiRating < 1_300 -> .60
-            state.aiRating < 1_600 -> .72
-            state.aiRating < 2_000 -> .84
-            else -> .92
-        }
-        val accuracy = (leagueAccuracy + when (state.settings.aiStrength) {
-            -1 -> -.10
-            1 -> .08
+        val ratingProgress = ((state.aiRating - 250).coerceIn(0, 2_000) / 2_000.0)
+        val accuracy = (.30 + ratingProgress * .60 + when (state.settings.aiStrength) {
+            -1 -> -.06
+            1 -> .04
             else -> 0.0
-        }).coerceIn(.08, .96)
+        }).coerceIn(.24, .94)
         val move = when {
             state.settings.aiVariedOpenings && state.gameMoves.size <= 1 -> humanLikeMove(position, legal, best)
             best != null && Random.nextDouble() < accuracy -> best
-            state.aiRating < 600 -> legal.randomOrNull()
             else -> humanLikeMove(position, legal, best)
         }
         if (move != null) applyGameMove(move)
@@ -428,6 +418,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun finishGame(result: String) {
         var progress = state.progress
         var ratingChange = 0
+        val ratingBefore = progress.rating
         if (state.gameMode == GameMode.AI) {
             val score = when {
                 result.startsWith("White wins") -> 1.0
@@ -435,16 +426,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 else -> 0.0
             }
             val expected = 1.0 / (1.0 + Math.pow(10.0, (state.aiRating - progress.rating) / 400.0))
-            val change = (32 * (score - expected)).toInt()
-            ratingChange = change
+            val kFactor = when {
+                progress.games < 10 -> 40
+                progress.rating < 1_600 -> 28
+                else -> 20
+            }
+            val calculated = (kFactor * (score - expected)).roundToInt()
+            ratingChange = when (score) {
+                1.0 -> calculated.coerceIn(4, 26)
+                .5 -> calculated.coerceIn(-12, 12)
+                else -> calculated.coerceIn(-30, -4)
+            }
             progress = progress.copy(
-                rating = (progress.rating + change).coerceAtLeast(100), games = progress.games + 1,
+                rating = (progress.rating + ratingChange).coerceAtLeast(100), games = progress.games + 1,
                 wins = progress.wins + if (score == 1.0) 1 else 0,
                 draws = progress.draws + if (score == .5) 1 else 0,
             )
             store.saveProgress(progress)
         }
-        state = state.copy(gameResult = result, aiThinking = false, aiDrawOffer = false, progress = progress, lastRatingChange = ratingChange)
+        store.addMatchHistory(
+            MatchHistoryEntry(
+                mode = state.gameMode.name,
+                result = result,
+                opponentRating = state.aiRating.takeIf { state.gameMode == GameMode.AI },
+                ratingBefore = ratingBefore,
+                ratingAfter = progress.rating,
+                ratingChange = ratingChange,
+                timeMinutes = state.selectedTimeMinutes,
+                moves = state.gameMoves.size,
+                finalFen = Fen.encode(state.gamePosition),
+            )
+        )
+        state = state.copy(
+            gameResult = result, aiThinking = false, aiDrawOffer = false, progress = progress,
+            lastRatingChange = ratingChange, matchHistory = store.matchHistory(),
+        )
     }
 
     private fun humanLikeMove(position: Position, legal: List<Move>, best: Move?): Move? {
@@ -453,9 +469,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val ranked = legal.filterNot { it == best }.sortedByDescending { move ->
             val capture = position[move.to]?.let { values[it.type] ?: 0 } ?: 0
             val center = if (move.to.file in 2..5 && move.to.rank in 2..5) 1 else 0
-            capture * 10 + center + Random.nextInt(0, 8)
+            val promotion = if (move.promotion != null) 70 else 0
+            val castle = if (position[move.from]?.type == PieceType.KING && kotlin.math.abs(move.to.file - move.from.file) == 2) 12 else 0
+            capture * 12 + promotion + castle + center * 2 + Random.nextInt(0, 7)
         }
-        val pool = when { state.aiRating < 600 -> 8; state.aiRating < 1000 -> 5; else -> 3 }
+        val pool = when {
+            state.aiRating < 500 -> 7
+            state.aiRating < 800 -> 6
+            state.aiRating < 1_100 -> 5
+            state.aiRating < 1_450 -> 4
+            state.aiRating < 1_850 -> 3
+            else -> 2
+        }
         return ranked.take(pool).randomOrNull() ?: best ?: legal.random()
     }
 
@@ -502,14 +527,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteSaved(id: String) { store.deleteSaved(id); state = state.copy(savedPositions = store.saved()) }
-    fun clearHistory() { store.clearHistory(); state = state.copy(history = emptyList()) }
+    fun clearHistory() { store.clearHistory(); state = state.copy(history = emptyList(), matchHistory = emptyList()) }
     fun clearSaved() { store.clearSaved(); state = state.copy(savedPositions = emptyList()) }
     fun exportData(): String = store.exportJson()
     fun importData(value: String): Boolean = runCatching { store.importJson(value) }.fold(
         onSuccess = {
             state = state.copy(
-                savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
-                settings = store.settings(), profile = store.profile(), fenError = null,
+                savedPositions = store.saved(), history = store.history(), matchHistory = store.matchHistory(), practiceStats = store.stats(),
+                settings = store.settings(), profile = store.profile(), progress = store.progress(), fenError = null,
             )
             true
         },

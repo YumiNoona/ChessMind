@@ -80,6 +80,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -177,6 +178,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.chessmind.domain.engine.AnalysisLevel
@@ -443,7 +447,7 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
         item {
-            Box(Modifier.fillMaxWidth().height(312.dp).clickable { vm.navigate(AppScreen.SCANNER) }) {
+            Box(Modifier.fillMaxWidth().height(326.dp).clickable { vm.navigate(AppScreen.SCANNER) }) {
                 Box(
                     Modifier.fillMaxWidth().height(290.dp).align(Alignment.BottomCenter)
                         .shadow(11.dp, RoundedCornerShape(32.dp), spotColor = Color(0xFF78A6FF).copy(.32f))
@@ -452,7 +456,7 @@ private fun HomeScreen(vm: MainViewModel) {
                 Image(
                     painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.width(386.dp).height(322.dp).align(Alignment.TopEnd).offset(x = 52.dp, y = (-12).dp),
+                    modifier = Modifier.width(420.dp).height(350.dp).align(Alignment.TopEnd).offset(x = 40.dp, y = (-28).dp),
                 )
                 Text(
                     "SOLVE A\nPOSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White,
@@ -469,10 +473,10 @@ private fun HomeScreen(vm: MainViewModel) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.PLAY_SELECT) }
-                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 198.dp, artOffsetX = 30.dp, artOffsetY = (-16).dp) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 224.dp, artOffsetX = 42.dp, artOffsetY = (-38).dp) { vm.navigate(AppScreen.SETUP) }
             }
         }
-        if (vm.state.history.isNotEmpty()) item {
+        if (vm.state.history.isNotEmpty() || vm.state.matchHistory.isNotEmpty()) item {
             Card(
                 onClick = { vm.navigate(AppScreen.HISTORY) }, shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = SurfaceDark),
@@ -481,8 +485,12 @@ private fun HomeScreen(vm: MainViewModel) {
                     Image(painterResource(R.drawable.art_history), null, contentScale = ContentScale.Crop, modifier = Modifier.size(62.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Continue your last analysis", style = MaterialTheme.typography.titleMedium)
-                        Text("${vm.state.history.first().bestMove} · ${vm.state.history.first().level}", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                        Text(if (vm.state.matchHistory.isNotEmpty()) "Review your latest match" else "Continue your last analysis", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (vm.state.matchHistory.isNotEmpty()) vm.state.matchHistory.first().result
+                            else "${vm.state.history.first().bestMove} · ${vm.state.history.first().level}",
+                            style = MaterialTheme.typography.bodyMedium, color = Muted, maxLines = 1,
+                        )
                     }
                     Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
                 }
@@ -613,14 +621,13 @@ private fun PlayModeCard(title: String, subtitle: String, detail: String, art: I
             Modifier.fillMaxWidth().height(154.dp).align(Alignment.BottomCenter)
                 .shadow(10.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.3f))
                 .clip(RoundedCornerShape(27.dp)).background(color),
-        ) {
-            Column(Modifier.align(Alignment.CenterStart).padding(20.dp).width(215.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(7.dp)); Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
-                Text(subtitle, color = Color.White.copy(.82f), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-                Text(detail, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
-            }
-        }
+        )
         Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(178.dp).align(Alignment.TopEnd).offset(x = 18.dp, y = (-3).dp))
+        Column(Modifier.align(Alignment.CenterStart).padding(20.dp).width(205.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(7.dp)); Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
+            Text(subtitle, color = Color.White.copy(.86f), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Text(detail, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+        }
     }
 }
 
@@ -868,11 +875,11 @@ private fun ProfileScreen(vm: MainViewModel) {
         ScreenHeader("Your profile", onBack = { vm.navigate(AppScreen.HOME) })
         Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC85A)), modifier = Modifier.fillMaxWidth().height(150.dp)) {
             Box(Modifier.fillMaxSize()) {
+                Image(painterResource(R.drawable.art_profile), null, contentScale = ContentScale.Fit, modifier = Modifier.size(180.dp).align(Alignment.CenterEnd).offset(x = 18.dp, y = 7.dp))
                 Column(Modifier.padding(20.dp).width(180.dp)) {
                     Text("YOUR CHESS STORY", style = MaterialTheme.typography.labelMedium, color = LightInk.copy(.66f))
                     Text("Play like a champion", style = MaterialTheme.typography.headlineMedium, color = LightInk, modifier = Modifier.padding(top = 6.dp))
                 }
-                Image(painterResource(R.drawable.art_profile), null, contentScale = ContentScale.Fit, modifier = Modifier.size(180.dp).align(Alignment.CenterEnd).offset(x = 18.dp, y = 7.dp))
             }
         }
         Spacer(Modifier.height(18.dp))
@@ -899,13 +906,14 @@ private fun ScannerScreen(vm: MainViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var granted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var captureError by remember { mutableStateOf<String?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.reviewImage(it.toString()) }
     }
     LaunchedEffect(Unit) { if (!granted) permissionLauncher.launch(Manifest.permission.CAMERA) }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(Color(0xFF09111F))) {
         if (granted) {
             AndroidView(
                 factory = { cameraContext ->
@@ -924,11 +932,12 @@ private fun ScannerScreen(vm: MainViewModel) {
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            Canvas(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 126.dp)) {
+            Canvas(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 154.dp)) {
                 val side = minOf(size.width, size.height)
                 val left = (size.width - side) / 2f
                 val top = (size.height - side) / 2f
-                drawRoundRect(Color.White.copy(.12f), Offset(left, top), Size(side, side), CornerRadius(28.dp.toPx()), style = Stroke(2.dp.toPx()))
+                drawRoundRect(Color.Black.copy(.18f), Offset(left, top), Size(side, side), CornerRadius(28.dp.toPx()))
+                drawRoundRect(accent.copy(.38f), Offset(left, top), Size(side, side), CornerRadius(28.dp.toPx()), style = Stroke(1.dp.toPx()))
                 val corner = 36.dp.toPx()
                 val width = 4.dp.toPx()
                 listOf(
@@ -938,49 +947,90 @@ private fun ScannerScreen(vm: MainViewModel) {
                     Offset(left + side, top + side) to Offset(left + side - corner, top + side), Offset(left + side, top + side) to Offset(left + side, top + side - corner),
                 ).forEach { (start, end) -> drawLine(accent, start, end, width, StrokeCap.Round) }
             }
-            Column(Modifier.fillMaxSize().padding(20.dp).statusBarsPadding().navigationBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(Color.Black.copy(.42f)).clickable { vm.navigate(AppScreen.HOME) }, contentAlignment = Alignment.Center) { Text("×", fontSize = 25.sp) }
-                    Spacer(Modifier.weight(1f))
-                    Box(Modifier.clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(.46f)).padding(horizontal = 14.dp, vertical = 9.dp)) {
-                        Text("ALIGN THE BOARD", fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                    color = Color(0xFF111D31).copy(.92f), contentColor = Color.White,
+                    shape = RoundedCornerShape(24.dp), shadowElevation = 8.dp,
+                ) {
+                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { vm.navigate(AppScreen.HOME) }) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("Scan a position", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("Line up every corner of the chessboard", color = Color.White.copy(.68f), fontSize = 11.sp)
+                        }
+                        Icon(Icons.Rounded.CenterFocusStrong, contentDescription = null, tint = Sunny, modifier = Modifier.size(26.dp))
+                        Spacer(Modifier.width(8.dp))
                     }
-                    Spacer(Modifier.weight(1f)); Spacer(Modifier.size(44.dp))
                 }
                 Spacer(Modifier.weight(1f))
-                Text("Keep all four corners inside the frame", fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(.46f)).padding(horizontal = 14.dp, vertical = 8.dp))
-                Spacer(Modifier.height(18.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                    FilledIconButton(
-                        onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.size(54.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark.copy(.9f), contentColor = Color.White),
-                    ) { Icon(Icons.Rounded.PhotoLibrary, contentDescription = "Choose image from gallery") }
-                    Box(
-                        Modifier.size(76.dp).semantics { contentDescription = "Capture chess board" }.clip(CircleShape).background(Color.White).border(6.dp, Color.White.copy(.35f), CircleShape).clickable {
-                            val capture = imageCapture ?: return@clickable
-                            val file = File(context.cacheDir, "scan-${System.currentTimeMillis()}.jpg")
-                            capture.takePicture(
-                                ImageCapture.OutputFileOptions.Builder(file).build(), ContextCompat.getMainExecutor(context),
-                                object : ImageCapture.OnImageSavedCallback {
-                                    override fun onImageSaved(output: ImageCapture.OutputFileResults) = vm.reviewImage(Uri.fromFile(file).toString())
-                                    override fun onError(exception: ImageCaptureException) = Unit
-                                },
-                            )
-                        },
-                    )
-                    Spacer(Modifier.size(54.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp), color = Color(0xFF111D31).copy(.94f),
+                    contentColor = Color.White, shape = RoundedCornerShape(28.dp), shadowElevation = 12.dp,
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Ready when the board is sharp", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Avoid glare and keep pieces fully visible.", color = Color.White.copy(.64f), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                        captureError?.let { Text(it, color = Coral, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp)) }
+                        Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            ScannerActionButton("Gallery", Icons.Rounded.PhotoLibrary, Color(0xFFEAF2FF), BrandBlue, Modifier.weight(1f)) {
+                                imagePicker.launch(arrayOf("image/*"))
+                            }
+                            ScannerActionButton("Capture", Icons.Rounded.CameraAlt, Sunny, Espresso, Modifier.weight(1.15f)) {
+                                val capture = imageCapture ?: return@ScannerActionButton
+                                captureError = null
+                                val file = File(context.cacheDir, "scan-${System.currentTimeMillis()}.jpg")
+                                capture.takePicture(
+                                    ImageCapture.OutputFileOptions.Builder(file).build(), ContextCompat.getMainExecutor(context),
+                                    object : ImageCapture.OnImageSavedCallback {
+                                        override fun onImageSaved(output: ImageCapture.OutputFileResults) = vm.reviewImage(Uri.fromFile(file).toString())
+                                        override fun onError(exception: ImageCaptureException) { captureError = "Could not capture. Please try once more." }
+                                    },
+                                )
+                            }
+                            ScannerActionButton("Manual", Icons.Rounded.GridOn, Color(0xFFDDF8EE), Color(0xFF176B52), Modifier.weight(1f)) {
+                                vm.navigate(AppScreen.SETUP)
+                            }
+                        }
+                    }
                 }
-                Spacer(Modifier.height(24.dp))
             }
         } else {
-            Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("⌗", fontSize = 58.sp, color = Accent)
-                Text("Camera access is needed", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("ChessMind only uses the camera while this scanner is open.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 12.dp))
-                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }, colors = ButtonDefaults.buttonColors(Sunny, Ink)) { Text("Allow camera") }
-                TextButton(onClick = { imagePicker.launch(arrayOf("image/*")) }) { Icon(Icons.Rounded.PhotoLibrary, null); Spacer(Modifier.width(7.dp)); Text("Choose from gallery") }
-                TextButton(onClick = { vm.navigate(AppScreen.SETUP) }) { Text("Set up manually") }
+            Surface(
+                modifier = Modifier.align(Alignment.Center).padding(24.dp), shape = RoundedCornerShape(30.dp),
+                color = Color(0xFF111D31), contentColor = Color.White, shadowElevation = 16.dp,
+            ) {
+                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Rounded.CenterFocusStrong, contentDescription = null, tint = Sunny, modifier = Modifier.size(64.dp))
+                    Text("Allow camera access", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 16.dp))
+                    Text("The camera is used only while this screen is open. Images stay on your device.", color = Color.White.copy(.66f), textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, bottom = 18.dp))
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(17.dp), colors = ButtonDefaults.buttonColors(Sunny, Espresso)) { Text("Open camera", fontWeight = FontWeight.Bold) }
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ScannerActionButton("Gallery", Icons.Rounded.PhotoLibrary, Color(0xFFEAF2FF), BrandBlue, Modifier.weight(1f)) { imagePicker.launch(arrayOf("image/*")) }
+                        ScannerActionButton("Manual", Icons.Rounded.GridOn, Color(0xFFDDF8EE), Color(0xFF176B52), Modifier.weight(1f)) { vm.navigate(AppScreen.SETUP) }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun ScannerActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    background: Color,
+    content: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(17.dp), color = background, contentColor = content) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1774,19 +1824,62 @@ private fun SavedScreen(vm: MainViewModel) {
 
 @Composable
 private fun HistoryScreen(vm: MainViewModel) {
-    val history = vm.state.history
+    val analyses = vm.state.history
+    val matches = vm.state.matchHistory
     LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        item { ScreenHeader("Analysis history", onBack = { vm.navigate(AppScreen.HOME) }, trailing = "${history.size} LOCAL") }
-        if (history.isEmpty()) item {
+        item { ScreenHeader("History", onBack = { vm.navigate(AppScreen.HOME) }, trailing = "${matches.size + analyses.size} LOCAL") }
+        if (matches.isEmpty() && analyses.isEmpty()) item {
             Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(painterResource(R.drawable.art_empty_history), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(210.dp))
-                    Text("Your next great idea starts here", style = MaterialTheme.typography.titleMedium)
-                    Text("Completed analyses appear here automatically.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
+                    Text("Every game tells a story", style = MaterialTheme.typography.titleMedium)
+                    Text("AI matches, friend games, and completed analyses will appear here.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
                 }
             }
         }
-        items(history, key = { it.id }) { item ->
+        if (matches.isNotEmpty()) item {
+            Text("MATCHES", style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+        }
+        items(matches, key = { it.id }) { item ->
+            val isAi = item.mode == GameMode.AI.name
+            val league = leagueFor(item.opponentRating ?: item.ratingBefore)
+            Card(shape = RoundedCornerShape(23.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(68.dp).clip(RoundedCornerShape(19.dp)).background(if (isAi) league.color.copy(.22f) else Color(0xFF69D3AE).copy(.25f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(painterResource(if (isAi) league.art else R.drawable.art_practice), null, contentScale = ContentScale.Fit, modifier = Modifier.size(78.dp))
+                    }
+                    Spacer(Modifier.width(13.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(item.result, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2)
+                        Text(
+                            if (isAi) "AI · ${league.name} · ${item.opponentRating} pts" else "Local friend match",
+                            color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp),
+                        )
+                        Text(
+                            "${if (item.timeMinutes == 0) "Unlimited" else "${item.timeMinutes} min"} · ${item.moves} moves · ${formatHistoryDate(item.createdAt)}",
+                            color = Muted.copy(.78f), fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    if (isAi) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = if (item.ratingChange >= 0) Color(0xFF69D3AE).copy(.25f) else Coral.copy(.16f)) {
+                            Text(
+                                if (item.ratingChange >= 0) "+${item.ratingChange}" else "${item.ratingChange}",
+                                color = if (item.ratingChange >= 0) Color(0xFF176B52) else Coral,
+                                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (analyses.isNotEmpty()) item {
+            Text("POSITION ANALYSES", style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+        }
+        items(analyses, key = { it.id }) { item ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark)
                     .clickable { vm.openHistory(item) }.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
@@ -1804,10 +1897,14 @@ private fun HistoryScreen(vm: MainViewModel) {
     }
 }
 
+private fun formatHistoryDate(timestamp: Long): String =
+    SimpleDateFormat("d MMM · h:mm a", Locale.getDefault()).format(Date(timestamp))
+
 @Composable
 private fun SettingsScreen(vm: MainViewModel) {
     val context = LocalContext.current
     val settings = vm.state.settings
+    var showClearHistory by remember { mutableStateOf(false) }
     val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             runCatching { context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader -> reader.readText() } }
@@ -1827,11 +1924,11 @@ private fun SettingsScreen(vm: MainViewModel) {
                         drawCircle(Color.White.copy(.13f), size.width * .34f, Offset(size.width * .94f, size.height * .05f))
                         drawCircle(Sunny.copy(.28f), size.width * .18f, Offset(size.width * .78f, size.height * .92f))
                     }
-                    Column(Modifier.padding(22.dp).width(220.dp)) {
+                    Image(painterResource(R.drawable.art_settings), null, contentScale = ContentScale.Fit, modifier = Modifier.align(Alignment.CenterEnd).size(155.dp).offset(x = 25.dp, y = 8.dp))
+                    Column(Modifier.padding(22.dp).width(205.dp)) {
                         Text("MAKE IT YOURS", color = Sunny, style = MaterialTheme.typography.labelMedium)
                         Text("A board that feels like you", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 7.dp))
                     }
-                    Image(painterResource(R.drawable.art_settings), null, contentScale = ContentScale.Fit, modifier = Modifier.align(Alignment.CenterEnd).size(155.dp).offset(x = 25.dp, y = 8.dp))
                 }
             }
         }
@@ -1896,11 +1993,15 @@ private fun SettingsScreen(vm: MainViewModel) {
             }
         }
         item {
-            TextButton(onClick = vm::clearHistory, modifier = Modifier.fillMaxWidth()) { Text("Clear history", color = Coral) }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
+            SettingsSection("Your data", Icons.Rounded.History) {
+                SettingAction(
+                    icon = Icons.Rounded.DeleteSweep, title = "Clear history",
+                    subtitle = "Remove match and analysis history", tint = Coral,
+                    onClick = { showClearHistory = true },
+                )
+                SettingAction(
+                    icon = Icons.Rounded.AutoAwesome, title = "Export backup",
+                    subtitle = "Share your profile, settings, games, and analyses",
                     onClick = {
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "application/json"
@@ -1908,15 +2009,36 @@ private fun SettingsScreen(vm: MainViewModel) {
                             putExtra(Intent.EXTRA_SUBJECT, "ChessMind backup")
                         }
                         context.startActivity(Intent.createChooser(intent, "Export ChessMind data"))
-                    }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(SurfaceLight, Ink),
-                ) { Text("Export data") }
-                Button(
-                    onClick = { backupPicker.launch("application/json") }, modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(Accent, Color.White),
-                ) { Text("Import data") }
+                    },
+                )
+                SettingAction(
+                    icon = Icons.Rounded.PhotoLibrary, title = "Import backup",
+                    subtitle = "Restore a ChessMind JSON backup", tint = Accent,
+                    onClick = { backupPicker.launch("application/json") },
+                )
             }
             vm.state.fenError?.let { error -> Text(error, color = Coral, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)) }
         }
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 18.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Text("Made With 💙 By ", color = Muted, fontSize = 12.sp)
+                Text(
+                    "Veil", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://venusapp.in"))) },
+                )
+            }
+        }
+    }
+    if (showClearHistory) {
+        AlertDialog(
+            onDismissRequest = { showClearHistory = false },
+            title = { Text("Clear all history?") },
+            text = { Text("This removes completed matches and position analyses from this device. Your rating and settings stay intact.") },
+            confirmButton = {
+                TextButton(onClick = { vm.clearHistory(); showClearHistory = false }) { Text("Clear", color = Coral, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { showClearHistory = false }) { Text("Keep history") } },
+        )
     }
 }
 
@@ -1963,10 +2085,11 @@ private fun SettingChoice(
 
 @Composable
 private fun ChoicePill(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val restingColor = if (MaterialTheme.colorScheme.background == NightBackground) Color(0xFF263247) else Color(0xFFFFFBF4)
     Surface(
         onClick = onClick, modifier = modifier,
-        color = if (selected) Accent else Color.Transparent,
-        contentColor = if (selected) Color.White else Muted,
+        color = if (selected) Accent else restingColor,
+        contentColor = if (selected) Color.White else Ink,
         shape = RoundedCornerShape(11.dp),
         shadowElevation = if (selected) 3.dp else 0.dp,
     ) { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
@@ -1981,7 +2104,38 @@ private fun SettingToggle(icon: androidx.compose.ui.graphics.vector.ImageVector,
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = Muted, fontSize = 12.sp)
         }
-        Switch(checked = checked, onCheckedChange = onChecked)
+        val restingColor = if (MaterialTheme.colorScheme.background == NightBackground) Color(0xFF263247) else Color(0xFFFFFBF4)
+        Switch(
+            checked = checked, onCheckedChange = onChecked,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White, checkedTrackColor = Accent, checkedBorderColor = Color.Transparent,
+                uncheckedThumbColor = Muted, uncheckedTrackColor = restingColor, uncheckedBorderColor = Color.Transparent,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun SettingAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    tint: Color = Ink,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        shape = RoundedCornerShape(18.dp), color = if (MaterialTheme.colorScheme.background == NightBackground) Color(0xFF263247) else Color(0xFFFFFBF4),
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, color = Ink)
+                Text(subtitle, color = Muted, fontSize = 11.sp)
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted, modifier = Modifier.size(20.dp))
+        }
     }
 }
 

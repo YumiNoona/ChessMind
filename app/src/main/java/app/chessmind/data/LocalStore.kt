@@ -23,6 +23,20 @@ data class HistoryEntry(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
+data class MatchHistoryEntry(
+    val id: String = UUID.randomUUID().toString(),
+    val mode: String,
+    val result: String,
+    val opponentRating: Int? = null,
+    val ratingBefore: Int,
+    val ratingAfter: Int,
+    val ratingChange: Int,
+    val timeMinutes: Int,
+    val moves: Int,
+    val finalFen: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
 data class PracticeStats(val solved: Int = 0, val correct: Int = 0, val streak: Int = 0, val bestStreak: Int = 0)
 
 data class UserSettings(
@@ -88,6 +102,30 @@ class LocalStore(context: Context) {
     fun addHistory(entry: HistoryEntry) = writeArray("history", (listOf(entry) + history()).take(100)) { item ->
         JSONObject().put("id", item.id).put("fen", item.fen).put("bestMove", item.bestMove)
             .put("level", item.level).put("createdAt", item.createdAt)
+    }
+
+    fun matchHistory(): List<MatchHistoryEntry> = parseArray("match_history") { json ->
+        MatchHistoryEntry(
+            id = json.getString("id"),
+            mode = json.optString("mode", "FRIEND"),
+            result = json.optString("result", "Game finished"),
+            opponentRating = if (json.has("opponentRating") && !json.isNull("opponentRating")) json.getInt("opponentRating") else null,
+            ratingBefore = json.optInt("ratingBefore", 500),
+            ratingAfter = json.optInt("ratingAfter", 500),
+            ratingChange = json.optInt("ratingChange"),
+            timeMinutes = json.optInt("timeMinutes", 5),
+            moves = json.optInt("moves"),
+            finalFen = json.optString("finalFen"),
+            createdAt = json.optLong("createdAt", System.currentTimeMillis()),
+        )
+    }.sortedByDescending { it.createdAt }
+
+    fun addMatchHistory(entry: MatchHistoryEntry) = writeArray("match_history", (listOf(entry) + matchHistory()).take(200)) { item ->
+        JSONObject().put("id", item.id).put("mode", item.mode).put("result", item.result)
+            .put("opponentRating", item.opponentRating ?: JSONObject.NULL)
+            .put("ratingBefore", item.ratingBefore).put("ratingAfter", item.ratingAfter)
+            .put("ratingChange", item.ratingChange).put("timeMinutes", item.timeMinutes)
+            .put("moves", item.moves).put("finalFen", item.finalFen).put("createdAt", item.createdAt)
     }
 
     fun stats(): PracticeStats = PracticeStats(
@@ -182,13 +220,14 @@ class LocalStore(context: Context) {
         return next
     }
 
-    fun clearHistory() = preferences.edit { remove("history") }
+    fun clearHistory() = preferences.edit { remove("history"); remove("match_history") }
     fun clearSaved() = preferences.edit { remove("saved") }
 
     fun exportJson(): String = JSONObject()
         .put("format", "chessmind-backup-v1")
         .put("saved", JSONArray(preferences.getString("saved", "[]")))
         .put("history", JSONArray(preferences.getString("history", "[]")))
+        .put("matches", JSONArray(preferences.getString("match_history", "[]")))
         .put("practice", JSONObject().put("solved", stats().solved).put("correct", stats().correct)
             .put("streak", stats().streak).put("bestStreak", stats().bestStreak))
         .put("settings", JSONObject().put("coordinates", settings().coordinates)
@@ -212,12 +251,14 @@ class LocalStore(context: Context) {
         require(root.getString("format") == "chessmind-backup-v1") { "This is not a ChessMind backup." }
         val saved = root.getJSONArray("saved")
         val history = root.getJSONArray("history")
+        val matches = root.optJSONArray("matches") ?: JSONArray()
         val practice = root.getJSONObject("practice")
         val settings = root.optJSONObject("settings")
         val profile = root.optJSONObject("profile")
         val play = root.optJSONObject("play")
         preferences.edit {
             putString("saved", saved.toString()); putString("history", history.toString())
+            putString("match_history", matches.toString())
             putInt("practice_solved", practice.optInt("solved")); putInt("practice_correct", practice.optInt("correct"))
             putInt("practice_streak", practice.optInt("streak")); putInt("practice_best_streak", practice.optInt("bestStreak"))
             if (settings != null) {
