@@ -107,7 +107,12 @@ private class StockfishProcessEngine(private val context: Context) : ChessEngine
     }
 
     private fun command(value: String) { input?.apply { write(value); newLine(); flush() } ?: error("Engine is not running") }
-    private fun readUntil(marker: String) { while (output?.readLine()?.contains(marker) != true) Unit }
+    private fun readUntil(marker: String) {
+        while (true) {
+            val line = output?.readLine() ?: error("Stockfish stopped before '$marker'")
+            if (line.contains(marker)) return
+        }
+    }
 
     private fun parseInfo(value: String): EngineLine? {
         if (!value.startsWith("info ") || " pv " !in value || " depth " !in value) return null

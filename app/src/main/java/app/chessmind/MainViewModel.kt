@@ -31,6 +31,7 @@ import kotlin.random.Random
 import kotlin.math.roundToInt
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 enum class AppScreen { SPLASH, ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS }
 
@@ -108,6 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val engine = HybridChessEngine(application)
     private val emergencyEngine = LocalChessEngine()
+    private var aiMoveInProgress = false
     private val launchDestination = if (store.isOnboarded()) AppScreen.HOME else AppScreen.ONBOARDING
     private val undoPositions = ArrayDeque<Position>()
     private val redoPositions = ArrayDeque<Position>()
@@ -300,31 +302,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun playAiMove() {
-        if (!state.aiThinking || state.gameResult != null || state.gamePosition.sideToMove != Side.BLACK) return
+        if (aiMoveInProgress || !state.aiThinking || state.gameResult != null || state.gamePosition.sideToMove != Side.BLACK) return
+        aiMoveInProgress = true
         val position = state.gamePosition
-        val level = when {
-            state.aiRating < 750 -> AnalysisLevel.BEGINNER
-            state.aiRating < 1_250 -> AnalysisLevel.INTERMEDIATE
-            state.aiRating < 1_800 -> AnalysisLevel.MASTER
-            else -> AnalysisLevel.GOD
+        try {
+            val level = when {
+                state.aiRating < 750 -> AnalysisLevel.BEGINNER
+                state.aiRating < 1_250 -> AnalysisLevel.INTERMEDIATE
+                state.aiRating < 1_800 -> AnalysisLevel.MASTER
+                else -> AnalysisLevel.GOD
+            }
+            val result = try {
+                withTimeoutOrNull(3_500) { engine.analyze(position, level) }
+            } catch (cancelled: CancellationException) {
+                engine.stop()
+                throw cancelled
+            } catch (_: Exception) {
+                engine.stop()
+                null
+            }
+            if (result == null) engine.stop()
+            if (
+                state.screen != AppScreen.GAME || state.gamePosition != position || !state.aiThinking ||
+                state.gameResult != null || state.gamePosition.sideToMove != Side.BLACK
+            ) return
+            val legal = ChessRules.legalMoves(position)
+            val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
+            val ratingProgress = ((state.aiRating - 250).coerceIn(0, 2_000) / 2_000.0)
+            val accuracy = (.30 + ratingProgress * .60 + when (state.settings.aiStrength) {
+                -1 -> -.06
+                1 -> .04
+                else -> 0.0
+            }).coerceIn(.24, .94)
+            val move = when {
+                state.settings.aiVariedOpenings && state.gameMoves.size <= 1 -> humanLikeMove(position, legal, best)
+                best != null && Random.nextDouble() < accuracy -> best
+                else -> humanLikeMove(position, legal, best)
+            }
+            if (move != null && move in ChessRules.legalMoves(state.gamePosition)) applyGameMove(move)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            runCatching {
+                if (state.gamePosition == position && state.gameResult == null && state.gamePosition.sideToMove == Side.BLACK) {
+                    ChessRules.legalMoves(position).firstOrNull()?.let(::applyGameMove)
+                }
+            }
+            state = state.copy(drawStatus = "The opponent recovered from an engine interruption.")
+        } finally {
+            aiMoveInProgress = false
+            if (state.aiThinking) state = state.copy(aiThinking = false)
         }
-        val result = withTimeoutOrNull(3_500) { engine.analyze(position, level) }
-        if (result == null) engine.stop()
-        val legal = ChessRules.legalMoves(position)
-        val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
-        val ratingProgress = ((state.aiRating - 250).coerceIn(0, 2_000) / 2_000.0)
-        val accuracy = (.30 + ratingProgress * .60 + when (state.settings.aiStrength) {
-            -1 -> -.06
-            1 -> .04
-            else -> 0.0
-        }).coerceIn(.24, .94)
-        val move = when {
-            state.settings.aiVariedOpenings && state.gameMoves.size <= 1 -> humanLikeMove(position, legal, best)
-            best != null && Random.nextDouble() < accuracy -> best
-            else -> humanLikeMove(position, legal, best)
-        }
-        if (move != null) applyGameMove(move)
-        state = state.copy(aiThinking = false)
     }
 
     fun resignGame() {
@@ -416,6 +444,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun finishGame(result: String) {
+        if (state.gameResult != null) return
         var progress = state.progress
         var ratingChange = 0
         val ratingBefore = progress.rating

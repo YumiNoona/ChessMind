@@ -456,11 +456,11 @@ private fun HomeScreen(vm: MainViewModel) {
                 Image(
                     painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.width(420.dp).height(350.dp).align(Alignment.TopEnd).offset(x = 40.dp, y = (-28).dp),
+                    modifier = Modifier.width(420.dp).height(350.dp).align(Alignment.TopEnd).offset(x = 40.dp, y = (-16).dp),
                 )
                 Text(
                     "SOLVE A\nPOSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White,
-                    modifier = Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 43.dp).width(170.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 56.dp).width(170.dp),
                 )
                 PlayfulActionButton(
                     label = "Scan board", icon = Icons.Rounded.CameraAlt,
@@ -473,7 +473,7 @@ private fun HomeScreen(vm: MainViewModel) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.PLAY_SELECT) }
-                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 224.dp, artOffsetX = 42.dp, artOffsetY = (-38).dp) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 224.dp, artOffsetX = 12.dp, artOffsetY = (-38).dp) { vm.navigate(AppScreen.SETUP) }
             }
         }
         if (vm.state.history.isNotEmpty() || vm.state.matchHistory.isNotEmpty()) item {
@@ -564,15 +564,13 @@ private fun PlaySelectScreen(vm: MainViewModel) {
         }
         item {
             PlayModeCard(
-                title = "Vs adaptive AI", subtitle = "A fair rival, rated just below you",
-                detail = "League-balanced strength", art = league.art,
+                title = "VS AI", art = league.art,
                 color = Color(0xFF6C91FF), icon = Icons.Rounded.SmartToy,
             ) { vm.startGame(GameMode.AI) }
         }
         item {
             PlayModeCard(
-                title = "Play a friend", subtitle = "Two players, one board",
-                detail = "Pass-and-play locally", art = R.drawable.art_practice,
+                title = "Play a friend", art = R.drawable.art_practice,
                 color = Color(0xFF69D3AE), icon = Icons.Rounded.Groups,
             ) { vm.startGame(GameMode.FRIEND) }
         }
@@ -601,7 +599,8 @@ private fun TimeControlPicker(selected: Int, onSelect: (Int) -> Unit) {
         listOf(3 to "3 min", 5 to "5 min", 10 to "10 min", 0 to "Unlimited").forEach { (minutes, label) ->
             Surface(
                 onClick = { onSelect(minutes) }, modifier = Modifier.weight(1f).height(42.dp),
-                shape = RoundedCornerShape(14.dp), color = if (selected == minutes) Accent else MaterialTheme.colorScheme.background,
+                shape = RoundedCornerShape(14.dp),
+                color = if (selected == minutes) Accent else if (MaterialTheme.colorScheme.background == NightBackground) Color(0xFF263247) else Color(0xFFFFFBF4),
                 contentColor = if (selected == minutes) Color.White else Ink,
                 shadowElevation = if (selected == minutes) 4.dp else 0.dp,
             ) {
@@ -615,7 +614,7 @@ private fun TimeControlPicker(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun PlayModeCard(title: String, subtitle: String, detail: String, art: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun PlayModeCard(title: String, art: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Box(Modifier.fillMaxWidth().height(178.dp).clickable(onClick = onClick)) {
         Box(
             Modifier.fillMaxWidth().height(154.dp).align(Alignment.BottomCenter)
@@ -623,10 +622,10 @@ private fun PlayModeCard(title: String, subtitle: String, detail: String, art: I
                 .clip(RoundedCornerShape(27.dp)).background(color),
         )
         Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(178.dp).align(Alignment.TopEnd).offset(x = 18.dp, y = (-3).dp))
-        Column(Modifier.align(Alignment.CenterStart).padding(20.dp).width(205.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(7.dp)); Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
-            Text(subtitle, color = Color.White.copy(.86f), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-            Text(detail, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+        Row(Modifier.align(Alignment.CenterStart).padding(20.dp).width(188.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, modifier = Modifier.size(25.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(title, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
@@ -1989,7 +1988,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 4.0.0", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 4.0.2", "Stockfish 19 on supported ARM devices")
             }
         }
         item {
@@ -2123,19 +2122,18 @@ private fun SettingAction(
     tint: Color = Ink,
     onClick: () -> Unit,
 ) {
-    Surface(
-        onClick = onClick, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-        shape = RoundedCornerShape(18.dp), color = if (MaterialTheme.colorScheme.background == NightBackground) Color(0xFF263247) else Color(0xFFFFFBF4),
+    Row(
+        Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 0.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, color = Ink)
-                Text(subtitle, color = Muted, fontSize = 11.sp)
-            }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(subtitle, color = Muted, fontSize = 12.sp)
         }
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted, modifier = Modifier.size(20.dp))
     }
 }
 
