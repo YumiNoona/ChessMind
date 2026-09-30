@@ -74,6 +74,9 @@ data class AppUiState(
     val reviewTotal: Int = 0,
     val gameRatingBefore: Int = 500,
     val lastRatingChange: Int = 0,
+    val selectedTimeMinutes: Int = 5,
+    val whiteTimeSeconds: Int = 300,
+    val blackTimeSeconds: Int = 300,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -90,6 +93,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings = store.settings(),
             profile = store.profile(),
             progress = store.progress(),
+            selectedTimeMinutes = store.settings().defaultTimeMinutes,
             practicePosition = Fen.parse(puzzles.first().fen).getOrThrow(),
         )
     )
@@ -163,6 +167,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         commitPosition(state.position.withPiece(square, null))
     }
 
+    fun dragSetupPiece(from: Square, to: Square) {
+        val moving = state.position[from] ?: return
+        commitPosition(state.position.withPiece(from, null).withPiece(to, moving))
+    }
+
     fun loadFen(value: String): Boolean = Fen.parse(value).fold(
         onSuccess = {
             commitPosition(it)
@@ -203,7 +212,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSettings(value: UserSettings) {
         store.saveSettings(value)
-        state = state.copy(settings = value)
+        val selectedClock = if (value.defaultTimeMinutes != state.settings.defaultTimeMinutes) {
+            value.defaultTimeMinutes
+        } else {
+            state.selectedTimeMinutes
+        }
+        state = state.copy(settings = value, selectedTimeMinutes = selectedClock)
     }
 
     fun updateProfile(name: String, imageUri: String?) {
@@ -212,15 +226,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(profile = profile)
     }
 
+    fun setMatchMinutes(minutes: Int) { state = state.copy(selectedTimeMinutes = minutes) }
+
     fun startGame(mode: GameMode) {
-        val opponent = (state.progress.rating - Random.nextInt(50, 101)).coerceAtLeast(300)
+        val playerRating = state.progress.rating
+        val opponent = when {
+            playerRating < 600 -> playerRating - Random.nextInt(170, 251)
+            playerRating < 800 -> playerRating - Random.nextInt(110, 181)
+            playerRating < 1_000 -> playerRating - Random.nextInt(80, 141)
+            playerRating < 1_300 -> playerRating - Random.nextInt(60, 111)
+            playerRating < 1_600 -> playerRating - Random.nextInt(45, 91)
+            else -> playerRating - Random.nextInt(25, 71)
+        }.coerceAtLeast(150)
+        val clockSeconds = state.selectedTimeMinutes * 60
         state = state.copy(
             screen = AppScreen.GAME, gameMode = mode, gamePosition = Position.START,
             gameSelected = null, gameMoves = emptyList(), gameResult = null,
             aiRating = opponent, aiThinking = false, gameReview = emptyList(), reviewLoading = false,
             reviewProgress = 0, reviewTotal = 0, gameRatingBefore = state.progress.rating, lastRatingChange = 0,
+            whiteTimeSeconds = clockSeconds, blackTimeSeconds = clockSeconds,
             flipped = false,
         )
+    }
+
+    fun tickGameClock() {
+        if (state.gameResult != null || state.selectedTimeMinutes == 0) return
+        if (state.gamePosition.sideToMove == Side.WHITE) {
+            val next = (state.whiteTimeSeconds - 1).coerceAtLeast(0)
+            state = state.copy(whiteTimeSeconds = next)
+            if (next == 0) finishGame("Black wins on time")
+        } else {
+            val next = (state.blackTimeSeconds - 1).coerceAtLeast(0)
+            state = state.copy(blackTimeSeconds = next)
+            if (next == 0) finishGame("White wins on time")
+        }
     }
 
     fun tapGame(square: Square) {
@@ -232,11 +271,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (selected == square) { state = state.copy(gameSelected = null); return }
-        val legal = ChessRules.legalMoves(state.gamePosition)
-        val move = legal.firstOrNull { it.from == selected && it.to == square && (it.promotion == null || it.promotion == PieceType.QUEEN) }
-        if (move == null) { state = state.copy(gameSelected = null); return }
+        if (!attemptGameMove(selected, square)) state = state.copy(gameSelected = null)
+    }
+
+    fun dragGame(from: Square, to: Square) {
+        if (state.gameResult != null || state.aiThinking) return
+        if (state.gameMode == GameMode.AI && state.gamePosition.sideToMove == Side.BLACK) return
+        attemptGameMove(from, to)
+    }
+
+    private fun attemptGameMove(from: Square, to: Square): Boolean {
+        val move = ChessRules.legalMoves(state.gamePosition).firstOrNull {
+            it.from == from && it.to == to && (it.promotion == null || it.promotion == PieceType.QUEEN)
+        } ?: return false
         applyGameMove(move)
         if (state.gameMode == GameMode.AI && state.gameResult == null) state = state.copy(aiThinking = true)
+        return true
     }
 
     suspend fun playAiMove() {
@@ -252,8 +302,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (result == null) engine.stop()
         val legal = ChessRules.legalMoves(position)
         val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
-        val accuracy = (.38 + state.aiRating / 2600.0).coerceIn(.48, .93)
-        val move = if (best != null && Random.nextDouble() < accuracy) best else humanLikeMove(position, legal, best)
+        val accuracy = when {
+            state.aiRating < 400 -> .12
+            state.aiRating < 600 -> .22
+            state.aiRating < 800 -> .34
+            state.aiRating < 1_000 -> .46
+            state.aiRating < 1_300 -> .60
+            state.aiRating < 1_600 -> .72
+            state.aiRating < 2_000 -> .84
+            else -> .92
+        }
+        val move = when {
+            best != null && Random.nextDouble() < accuracy -> best
+            state.aiRating < 600 -> legal.randomOrNull()
+            else -> humanLikeMove(position, legal, best)
+        }
         if (move != null) applyGameMove(move)
         state = state.copy(aiThinking = false)
     }
@@ -297,6 +360,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(
             gamePosition = after, gameSelected = null,
             gameMoves = state.gameMoves + GameMoveRecord(before, after, move, notation, before.sideToMove),
+            flipped = if (state.gameMode == GameMode.FRIEND && state.settings.autoFlipFriend) !state.flipped else state.flipped,
         )
         val legal = ChessRules.legalMoves(after)
         if (legal.isEmpty()) {
@@ -418,6 +482,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             practiceResult = if (correct) "Excellent — you found the best move." else "Good try. Best move: ${puzzles[state.puzzleIndex].solution}",
             practiceStats = stats,
         )
+    }
+
+    fun dragPractice(from: Square, to: Square) {
+        if (state.practicePosition[from]?.side != state.practicePosition.sideToMove) return
+        state = state.copy(practiceSelected = from)
+        tapPractice(to)
     }
 
     fun nextPuzzle() {

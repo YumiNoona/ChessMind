@@ -10,7 +10,7 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Bundled Space Grotesk and JetBrains Mono typography
 - Ten original transparent ChessMind illustrations used across onboarding, scan, import, setup, practice, history, analysis, settings, profile, and results
 - Full illustrated launch experience sourced from `public/splash.png` and adaptive launcher artwork from `public/logo.png`
-- Four board palettes and four crisp filled piece sets (rhosgfx, fantasy, spatial, and celtic) with no synthetic outlines or piece shadows
+- Four board palettes and five crisp filled piece sets (rhosgfx, fantasy, spatial, celtic, and Chessnut) with no synthetic outlines or piece shadows
 - Short first-run onboarding and edge-to-edge phone layout
 - CameraX scanner overlay plus gallery import and image rotation/review
 - Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls
@@ -87,7 +87,7 @@ ChessMind's engine layer is implementation-independent. On supported ARM devices
 
 Space Grotesk and JetBrains Mono are bundled under the SIL Open Font License; their license texts are included beside the Stockfish license.
 
-The four bundled piece sets come from the official Lichess repository. `rhosgfx` is CC0; `fantasy`, `spatial`, and `celtic` are MIT-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and license text.
+The five bundled piece sets come from the official Lichess repository. `rhosgfx` is CC0; `fantasy`, `spatial`, and `celtic` are MIT-licensed; Chessnut is Apache-2.0 licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and license text.
 
 ## Privacy
 

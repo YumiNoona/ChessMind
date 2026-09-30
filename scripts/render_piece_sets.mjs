@@ -7,7 +7,7 @@ const sharp = require("sharp");
 const root = path.resolve(import.meta.dirname, "..");
 const sourceRoot = path.join(root, "third_party", "chess_pieces");
 const outputRoot = path.join(root, "app", "src", "main", "res", "drawable-nodpi");
-const sets = ["rhosgfx", "fantasy", "spatial", "celtic"];
+const sets = ["rhosgfx", "fantasy", "spatial", "celtic", "chessnut"];
 const sides = ["w", "b"];
 const pieces = ["K", "Q", "R", "B", "N", "P"];
 

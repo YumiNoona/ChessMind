@@ -11,6 +11,7 @@ to Android PNG resources by `scripts/render_piece_sets.mjs`.
 | fantasy | Tommy Ettinger | MIT |
 | spatial | Tommy Ettinger | MIT |
 | celtic | Tommy Ettinger | MIT |
+| chessnut | Alexis Luengas | Apache License 2.0 |
 
 The upstream attribution and licensing index is available in
 [Lichess COPYING.md](https://github.com/lichess-org/lila/blob/master/COPYING.md).
@@ -42,3 +43,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Apache License 2.0
+
+The Chessnut piece set is distributed under the Apache License 2.0. Its
+complete upstream license is retained at
+`third_party/chess_pieces/chessnut/LICENSE.txt` and is also available at
+https://www.apache.org/licenses/LICENSE-2.0

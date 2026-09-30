@@ -36,6 +36,12 @@ data class UserSettings(
     val pieceDepth: Boolean = true,
     val boardTheme: Int = 0,
     val pieceStyle: Int = 0,
+    val dragToMove: Boolean = true,
+    val showLastMove: Boolean = true,
+    val showMoveList: Boolean = true,
+    val autoFlipFriend: Boolean = false,
+    val defaultTimeMinutes: Int = 5,
+    val aiMoveDelayMs: Int = 650,
 )
 
 data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
@@ -99,6 +105,12 @@ class LocalStore(context: Context) {
         pieceDepth = preferences.getBoolean("setting_piece_depth", true),
         boardTheme = preferences.getInt("setting_board_theme", 0),
         pieceStyle = preferences.getInt("setting_piece_style", 0),
+        dragToMove = preferences.getBoolean("setting_drag_to_move", true),
+        showLastMove = preferences.getBoolean("setting_show_last_move", true),
+        showMoveList = preferences.getBoolean("setting_show_move_list", true),
+        autoFlipFriend = preferences.getBoolean("setting_auto_flip_friend", false),
+        defaultTimeMinutes = preferences.getInt("setting_default_time", 5),
+        aiMoveDelayMs = preferences.getInt("setting_ai_move_delay", 650),
     )
 
     fun saveSettings(value: UserSettings) = preferences.edit {
@@ -112,6 +124,12 @@ class LocalStore(context: Context) {
         putBoolean("setting_piece_depth", value.pieceDepth)
         putInt("setting_board_theme", value.boardTheme)
         putInt("setting_piece_style", value.pieceStyle)
+        putBoolean("setting_drag_to_move", value.dragToMove)
+        putBoolean("setting_show_last_move", value.showLastMove)
+        putBoolean("setting_show_move_list", value.showMoveList)
+        putBoolean("setting_auto_flip_friend", value.autoFlipFriend)
+        putInt("setting_default_time", value.defaultTimeMinutes)
+        putInt("setting_ai_move_delay", value.aiMoveDelayMs)
     }
 
     fun profile(): LocalProfile = LocalProfile(
@@ -163,7 +181,10 @@ class LocalStore(context: Context) {
             .put("animations", settings().animations).put("highContrastBoard", settings().highContrastBoard)
             .put("darkMode", settings().darkMode).put("boardDepth", settings().boardDepth)
             .put("pieceDepth", settings().pieceDepth).put("boardTheme", settings().boardTheme)
-            .put("pieceStyle", settings().pieceStyle))
+            .put("pieceStyle", settings().pieceStyle).put("dragToMove", settings().dragToMove)
+            .put("showLastMove", settings().showLastMove).put("showMoveList", settings().showMoveList)
+            .put("autoFlipFriend", settings().autoFlipFriend).put("defaultTimeMinutes", settings().defaultTimeMinutes)
+            .put("aiMoveDelayMs", settings().aiMoveDelayMs))
         .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .put("play", JSONObject().put("rating", progress().rating).put("games", progress().games)
             .put("wins", progress().wins).put("draws", progress().draws))
@@ -193,6 +214,12 @@ class LocalStore(context: Context) {
                 putBoolean("setting_piece_depth", settings.optBoolean("pieceDepth", true))
                 putInt("setting_board_theme", settings.optInt("boardTheme", 0))
                 putInt("setting_piece_style", settings.optInt("pieceStyle", 0))
+                putBoolean("setting_drag_to_move", settings.optBoolean("dragToMove", true))
+                putBoolean("setting_show_last_move", settings.optBoolean("showLastMove", true))
+                putBoolean("setting_show_move_list", settings.optBoolean("showMoveList", true))
+                putBoolean("setting_auto_flip_friend", settings.optBoolean("autoFlipFriend", false))
+                putInt("setting_default_time", settings.optInt("defaultTimeMinutes", 5))
+                putInt("setting_ai_move_delay", settings.optInt("aiMoveDelayMs", 650))
             }
             if (profile != null) {
                 putString("profile_name", profile.optString("name", "Chess player"))
