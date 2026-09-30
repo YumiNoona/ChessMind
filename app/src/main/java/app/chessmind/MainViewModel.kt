@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import app.chessmind.data.HistoryEntry
 import app.chessmind.data.LocalStore
 import app.chessmind.data.PracticeStats
@@ -15,6 +16,7 @@ import app.chessmind.data.PlayerProgress
 import app.chessmind.domain.engine.AnalysisLevel
 import app.chessmind.domain.engine.AnalysisResult
 import app.chessmind.data.engine.HybridChessEngine
+import app.chessmind.domain.engine.LocalChessEngine
 import app.chessmind.domain.model.Fen
 import app.chessmind.domain.model.Piece
 import app.chessmind.domain.model.PieceType
@@ -25,8 +27,10 @@ import app.chessmind.domain.model.Square
 import app.chessmind.domain.model.Move
 import app.chessmind.domain.model.ChessRules
 import kotlin.random.Random
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
 
-enum class AppScreen { ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS }
+enum class AppScreen { SPLASH, ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS }
 
 enum class GameMode { AI, FRIEND }
 
@@ -36,7 +40,7 @@ data class GameReviewItem(val ply: Int, val side: Side, val move: String, val be
 data class PracticePuzzle(val title: String, val subtitle: String, val fen: String, val solution: String, val hint: String)
 
 data class AppUiState(
-    val screen: AppScreen = AppScreen.HOME,
+    val screen: AppScreen = AppScreen.SPLASH,
     val position: Position = Position.START,
     val flipped: Boolean = false,
     val selected: Square? = null,
@@ -66,6 +70,10 @@ data class AppUiState(
     val aiThinking: Boolean = false,
     val gameReview: List<GameReviewItem> = emptyList(),
     val reviewLoading: Boolean = false,
+    val reviewProgress: Int = 0,
+    val reviewTotal: Int = 0,
+    val gameRatingBefore: Int = 500,
+    val lastRatingChange: Int = 0,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -77,7 +85,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     var state by mutableStateOf(
         AppUiState(
-            screen = if (store.isOnboarded()) AppScreen.HOME else AppScreen.ONBOARDING,
+            screen = AppScreen.SPLASH,
             savedPositions = store.saved(), history = store.history(), practiceStats = store.stats(),
             settings = store.settings(),
             profile = store.profile(),
@@ -88,10 +96,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     private val engine = HybridChessEngine(application)
+    private val emergencyEngine = LocalChessEngine()
+    private val launchDestination = if (store.isOnboarded()) AppScreen.HOME else AppScreen.ONBOARDING
     private val undoPositions = ArrayDeque<Position>()
     private val redoPositions = ArrayDeque<Position>()
 
     fun navigate(screen: AppScreen) { state = state.copy(screen = screen, selected = null) }
+    fun finishSplash() { if (state.screen == AppScreen.SPLASH) state = state.copy(screen = launchDestination) }
     fun completeOnboarding() { store.completeOnboarding(); state = state.copy(screen = AppScreen.HOME) }
     fun reviewImage(uri: String) { state = state.copy(importedImage = uri, screen = AppScreen.IMAGE_REVIEW) }
     fun startImageCorrection() {
@@ -207,6 +218,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             screen = AppScreen.GAME, gameMode = mode, gamePosition = Position.START,
             gameSelected = null, gameMoves = emptyList(), gameResult = null,
             aiRating = opponent, aiThinking = false, gameReview = emptyList(), reviewLoading = false,
+            reviewProgress = 0, reviewTotal = 0, gameRatingBefore = state.progress.rating, lastRatingChange = 0,
             flipped = false,
         )
     }
@@ -236,9 +248,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             state.aiRating < 1500 -> AnalysisLevel.MASTER
             else -> AnalysisLevel.GOD
         }
-        val result = engine.analyze(position, level)
+        val result = withTimeoutOrNull(3_500) { engine.analyze(position, level) }
+        if (result == null) engine.stop()
         val legal = ChessRules.legalMoves(position)
-        val best = result.principalVariationUci.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
+        val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
         val accuracy = (.38 + state.aiRating / 2600.0).coerceIn(.48, .93)
         val move = if (best != null && Random.nextDouble() < accuracy) best else humanLikeMove(position, legal, best)
         if (move != null) applyGameMove(move)
@@ -250,15 +263,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         finishGame(if (state.gameMode == GameMode.AI) "AI wins by resignation" else "${state.gamePosition.sideToMove.opposite().name.lowercase().replaceFirstChar { it.uppercase() }} wins by resignation")
     }
 
-    suspend fun buildGameReview() {
+    fun buildGameReview() {
         if (state.gameMoves.isEmpty()) return
-        state = state.copy(screen = AppScreen.GAME_REVIEW, reviewLoading = true, gameReview = emptyList())
-        val reviews = state.gameMoves.mapIndexed { index, record ->
-            val answer = engine.analyze(record.before, AnalysisLevel.BEGINNER)
-            val verdict = if (normalizeMove(answer.bestMove) == normalizeMove(record.notation)) "Best move" else "Review this"
-            GameReviewItem(index + 1, record.side, record.notation, answer.bestMove, verdict, record.after)
+        viewModelScope.launch {
+            val moves = state.gameMoves
+            val inspected = if (moves.size <= 24) moves.indices.toSet() else {
+                List(24) { step -> (step * (moves.lastIndex.toDouble() / 23.0)).toInt() }.toSet()
+            }
+            state = state.copy(screen = AppScreen.GAME_REVIEW, reviewLoading = true, gameReview = emptyList(), reviewProgress = 0, reviewTotal = moves.size)
+            val reviews = mutableListOf<GameReviewItem>()
+            moves.forEachIndexed { index, record ->
+                val answer = if (index in inspected) withTimeoutOrNull(700) {
+                    engine.analyze(record.before, AnalysisLevel.BEGINNER)
+                } else null
+                if (answer == null && index in inspected) engine.stop()
+                val bestMove = answer?.bestMove ?: record.notation
+                val verdict = when {
+                    answer == null -> "Quick review"
+                    normalizeMove(bestMove) == normalizeMove(record.notation) -> "Best move"
+                    else -> "Review this"
+                }
+                reviews += GameReviewItem(index + 1, record.side, record.notation, bestMove, verdict, record.after)
+                state = state.copy(gameReview = reviews.toList(), reviewProgress = index + 1)
+            }
+            state = state.copy(reviewLoading = false)
         }
-        state = state.copy(gameReview = reviews, reviewLoading = false)
     }
 
     private fun applyGameMove(move: Move) {
@@ -280,6 +309,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun finishGame(result: String) {
         var progress = state.progress
+        var ratingChange = 0
         if (state.gameMode == GameMode.AI) {
             val score = when {
                 result.startsWith("White wins") -> 1.0
@@ -288,6 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             val expected = 1.0 / (1.0 + Math.pow(10.0, (state.aiRating - progress.rating) / 400.0))
             val change = (32 * (score - expected)).toInt()
+            ratingChange = change
             progress = progress.copy(
                 rating = (progress.rating + change).coerceAtLeast(100), games = progress.games + 1,
                 wins = progress.wins + if (score == 1.0) 1 else 0,
@@ -295,7 +326,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             store.saveProgress(progress)
         }
-        state = state.copy(gameResult = result, aiThinking = false, progress = progress)
+        state = state.copy(gameResult = result, aiThinking = false, progress = progress, lastRatingChange = ratingChange)
     }
 
     private fun humanLikeMove(position: Position, legal: List<Move>, best: Move?): Move? {
@@ -327,7 +358,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun analyze(level: AnalysisLevel) {
         state = state.copy(level = level, result = null, screen = AppScreen.ANALYSIS)
-        val result = engine.analyze(state.position, level)
+        val position = state.position
+        val result = withTimeoutOrNull(level.timeMs + 2_500) { engine.analyze(position, level) } ?: run {
+            engine.stop()
+            withTimeoutOrNull(2_000) { emergencyEngine.analyze(position, AnalysisLevel.BEGINNER) }
+        } ?: run {
+            state = state.copy(screen = AppScreen.LEVEL)
+            return
+        }
         store.addHistory(HistoryEntry(fen = Fen.encode(state.position), bestMove = result.bestMove, level = level.title))
         state = state.copy(result = result, history = store.history())
     }

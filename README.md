@@ -9,8 +9,8 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Expressive sky-blue Material 3 interface with a complete dark theme and focused Home–History dock
 - Bundled Space Grotesk and JetBrains Mono typography
 - Ten original transparent ChessMind illustrations used across onboarding, scan, import, setup, practice, history, analysis, settings, profile, and results
-- Custom launcher artwork sourced from `public/logo.png`
-- Independent 2D/3D board and piece styles with high-contrast custom-rendered chess pieces
+- Full illustrated launch experience sourced from `public/splash.png` and adaptive launcher artwork from `public/logo.png`
+- Four board palettes and four crisp filled piece sets (rhosgfx, fantasy, spatial, and celtic) with no synthetic outlines or piece shadows
 - Short first-run onboarding and edge-to-edge phone layout
 - CameraX scanner overlay plus gallery import and image rotation/review
 - Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls
@@ -20,8 +20,8 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Adaptive offline AI opponents rated slightly below the player
 - Local pass-and-play friend matches with legal move enforcement
 - Iron, Silver, Gold, Platinum, Diamond, Master, and Grandmaster leagues
-- Persistent points, games, wins, and draws stored only on device
-- Full-game review for both sides with best-move comparisons
+- Persistent points, games, wins, and draws stored only on device, with per-match point changes and league progress shown after every AI game
+- Full-game review for both sides with best-move comparisons, visible progress, per-position time limits, and a guaranteed quick-review fallback
 - Packaged Stockfish 19 UCI analysis on ARM devices, with a cancellable built-in engine fallback
 - MultiPV candidate moves, evaluation, depth, principal variation, and human-readable reasons
 - Interactive analysis board with previous/next line controls, free legal play, reset, and re-analysis
@@ -44,6 +44,8 @@ app/src/main/
 │   └── MainViewModel.kt             # App state and workflows
 └── jniLibs/                         # Locally fetched Stockfish binaries (ignored)
 scripts/fetch-stockfish.ps1          # Reproducible Stockfish fetch
+scripts/render_piece_sets.mjs        # Reproducible SVG-to-PNG piece renderer
+third_party/chess_pieces/            # Upstream SVG chess artwork
 docs/BUILD_BRIEF.md                  # Product and architecture brief
 ```
 
@@ -84,6 +86,8 @@ keyPassword=your-key-password
 ChessMind's engine layer is implementation-independent. On supported ARM devices it launches the packaged official [Stockfish 19](https://github.com/official-stockfish/Stockfish/releases/tag/sf_19) binary through UCI; unsupported ABIs transparently use the built-in fallback engine. Stockfish is licensed under GPLv3, whose text is packaged at `app/src/main/assets/licenses/stockfish-gpl-3.txt`. The exact upstream source is available from the linked release/tag. Preserve the license and corresponding-source availability when redistributing an APK containing Stockfish.
 
 Space Grotesk and JetBrains Mono are bundled under the SIL Open Font License; their license texts are included beside the Stockfish license.
+
+The four bundled piece sets come from the official Lichess repository. `rhosgfx` is CC0; `fantasy`, `spatial`, and `celtic` are MIT-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and license text.
 
 ## Privacy
 

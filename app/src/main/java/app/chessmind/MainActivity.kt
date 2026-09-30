@@ -74,6 +74,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -216,6 +217,7 @@ private val LeagueLooks = listOf(
     LeagueLook("Grandmaster", 2000, R.drawable.league_grandmaster, Color(0xFFE25A4B)),
 )
 private fun leagueFor(rating: Int) = LeagueLooks.last { rating >= it.minRating }
+private fun nextLeague(rating: Int) = LeagueLooks.firstOrNull { it.minRating > rating }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -287,6 +289,10 @@ private fun ChessMindTheme(darkMode: Boolean, content: @Composable () -> Unit) {
 @Composable
 fun ChessMindApp(vm: MainViewModel = viewModel()) {
     val state = vm.state
+    if (state.screen == AppScreen.SPLASH) {
+        SplashScreen(vm::finishSplash)
+        return
+    }
     BackHandler(enabled = state.screen !in setOf(AppScreen.HOME, AppScreen.ONBOARDING)) {
         vm.navigate(
             when (state.screen) {
@@ -320,6 +326,7 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
                 modifier = Modifier.fillMaxSize().padding(padding).statusBarsPadding(),
             ) { screen ->
                 when (screen) {
+                    AppScreen.SPLASH -> Unit
                     AppScreen.ONBOARDING -> OnboardingScreen(vm)
                     AppScreen.HOME -> HomeScreen(vm)
                     AppScreen.PROFILE -> ProfileScreen(vm)
@@ -339,6 +346,27 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
         if (state.screen in setOf(AppScreen.HOME, AppScreen.HISTORY)) {
             FloatingDock(state.screen, vm::navigate, Modifier.align(Alignment.BottomCenter))
         }
+    }
+}
+
+@Composable
+private fun SplashScreen(onFinished: () -> Unit) {
+    LaunchedEffect(Unit) {
+        delay(1_350)
+        onFinished()
+    }
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.linearGradient(listOf(Color(0xFF84B7E9), Color(0xFFB5A0DE), Color(0xFF55C1E9))),
+        ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.splash_art),
+            contentDescription = "ChessMind",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth().height(360.dp),
+        )
     }
 }
 
@@ -465,17 +493,21 @@ private fun HomeScreen(vm: MainViewModel) {
 
 @Composable
 private fun HomeActionCard(title: String, subtitle: String, art: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(170.dp).shadow(10.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.32f)), shape = RoundedCornerShape(27.dp), colors = CardDefaults.cardColors(containerColor = color, contentColor = Color.White), elevation = CardDefaults.cardElevation(3.dp)) {
-        Box(Modifier.fillMaxSize()) {
-            Image(
-                painterResource(art), null, contentScale = ContentScale.Fit,
-                modifier = Modifier.width(220.dp).height(150.dp).align(Alignment.TopCenter).offset(x = 13.dp, y = (-28).dp),
-            )
+    Box(modifier.height(188.dp).clickable(onClick = onClick)) {
+        Box(
+            Modifier.fillMaxWidth().height(158.dp).align(Alignment.BottomCenter)
+                .shadow(11.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.32f))
+                .clip(RoundedCornerShape(27.dp)).background(color),
+        ) {
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.78f))
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.82f))
             }
         }
+        Image(
+            painterResource(art), null, contentScale = ContentScale.Fit,
+            modifier = Modifier.size(158.dp).align(Alignment.TopEnd).offset(x = 20.dp, y = (-5).dp),
+        )
     }
 }
 
@@ -541,15 +573,19 @@ private fun PlaySelectScreen(vm: MainViewModel) {
 
 @Composable
 private fun PlayModeCard(title: String, subtitle: String, detail: String, art: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = RoundedCornerShape(27.dp), colors = CardDefaults.cardColors(color, Color.White), modifier = Modifier.fillMaxWidth().height(154.dp)) {
-        Box(Modifier.fillMaxSize()) {
-            Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(160.dp).align(Alignment.CenterEnd).offset(x = 18.dp))
+    Box(Modifier.fillMaxWidth().height(178.dp).clickable(onClick = onClick)) {
+        Box(
+            Modifier.fillMaxWidth().height(154.dp).align(Alignment.BottomCenter)
+                .shadow(10.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.3f))
+                .clip(RoundedCornerShape(27.dp)).background(color),
+        ) {
             Column(Modifier.align(Alignment.CenterStart).padding(20.dp).width(215.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(7.dp)); Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
                 Text(subtitle, color = Color.White.copy(.82f), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 Text(detail, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
             }
         }
+        Image(painterResource(art), null, contentScale = ContentScale.Fit, modifier = Modifier.size(178.dp).align(Alignment.TopEnd).offset(x = 18.dp, y = (-3).dp))
     }
 }
 
@@ -560,7 +596,6 @@ private fun GameScreen(vm: MainViewModel) {
     val legal = ChessRules.legalMoves(position)
     val hints = state.gameSelected?.let { from -> legal.filter { it.from == from }.map { it.to }.toSet() }.orEmpty()
     val last = state.gameMoves.lastOrNull()?.move
-    val scope = rememberCoroutineScope()
     LaunchedEffect(state.aiThinking, state.gameMoves.size) {
         if (state.aiThinking) { delay(650); vm.playAiMove() }
     }
@@ -603,13 +638,31 @@ private fun GameScreen(vm: MainViewModel) {
         if (state.gameResult == null) item {
             TextButton(onClick = vm::resignGame, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Flag, null); Spacer(Modifier.width(6.dp)); Text("Resign game") }
         } else item {
+            val currentLeague = leagueFor(state.progress.rating)
+            val previousLeague = leagueFor(state.gameRatingBefore)
+            val upcoming = nextLeague(state.progress.rating)
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(Sunny, LightInk)) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.EmojiEvents, null, modifier = Modifier.size(38.dp)); Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) { Text(state.gameResult, fontWeight = FontWeight.ExtraBold); Text("Review ideas for White and Black", fontSize = 12.sp) }
+                Column(Modifier.fillMaxWidth().padding(17.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(painterResource(currentLeague.art), null, modifier = Modifier.size(64.dp), contentScale = ContentScale.Fit)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(state.gameResult, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Text(if (state.gameMode == GameMode.AI) "${if (state.lastRatingChange >= 0) "+" else ""}${state.lastRatingChange} points this match" else "Friendly match · unrated", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("${state.progress.rating} points · ${currentLeague.name} league", fontSize = 12.sp, color = LightInk.copy(.72f))
+                        }
+                    }
+                    if (state.gameMode == GameMode.AI) {
+                        if (previousLeague != currentLeague) Text("League up! Welcome to ${currentLeague.name}.", fontWeight = FontWeight.ExtraBold, color = BrandBlue, modifier = Modifier.padding(top = 9.dp))
+                        Text(
+                            upcoming?.let { "${it.minRating - state.progress.rating} points to ${it.name}" } ?: "Highest league reached",
+                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                    Text("Review ideas for White and Black", fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
                 }
             }
-            Button(onClick = { scope.launch { vm.buildGameReview() } }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+            Button(onClick = vm::buildGameReview, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
                 Icon(Icons.Rounded.Psychology, null); Spacer(Modifier.width(7.dp)); Text("Analyze both sides")
             }
         }
@@ -622,7 +675,7 @@ private fun GameReviewScreen(vm: MainViewModel) {
     val state = vm.state
     var index by remember(state.gameReview.size) { mutableStateOf(0) }
     if (state.reviewLoading) {
-        AnalyzingScreen(AnalysisLevel.BEGINNER) { vm.navigate(AppScreen.GAME) }
+        ReviewLoadingScreen(state.reviewProgress, state.reviewTotal) { vm.navigate(AppScreen.GAME) }
         return
     }
     val review = state.gameReview.getOrNull(index)
@@ -984,9 +1037,8 @@ private fun ChessBoard(
     val darkColor = if (highContrastBoard) Color(0xFF6E8060) else palette.second
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f)
-            .graphicsLayer { if (boardDepth) { rotationX = 2.5f; cameraDistance = 18f * density } }
-            .shadow(if (boardDepth) 22.dp else 12.dp, RoundedCornerShape(26.dp), spotColor = Color(0xFF356DFF).copy(.24f))
-            .clip(RoundedCornerShape(26.dp)).background(SurfaceLight).padding(if (boardDepth) 8.dp else 7.dp),
+            .shadow(if (boardDepth) 12.dp else 6.dp, RoundedCornerShape(26.dp), spotColor = Color.Black.copy(.16f))
+            .clip(RoundedCornerShape(26.dp)).background(SurfaceLight).padding(7.dp),
     ) {
         Column(Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))) {
             for (displayRank in 0..7) {
@@ -1000,23 +1052,13 @@ private fun ChessBoard(
                         val isLastMove = square == lastMove?.first || square == lastMove?.second
                         val isHint = square in hintSquares
                         val squareColor = if (isSelected) Coral else if (isLastMove) Sunny else if (light) lightColor else darkColor
-                        val squareShade = Color(
-                            red = squareColor.red * .82f,
-                            green = squareColor.green * .82f,
-                            blue = squareColor.blue * .82f,
-                            alpha = 1f,
-                        )
                         Box(
                             Modifier.weight(1f).fillMaxHeight()
                                 .semantics {
                                     val piece = position[square]
                                     contentDescription = if (piece == null) "${square.algebraic}, empty" else "${square.algebraic}, ${piece.side.name.lowercase()} ${piece.type.name.lowercase()}"
                                 }
-                                .background(
-                                    if (boardDepth) Brush.verticalGradient(
-                                        listOf(squareColor.copy(alpha = 1f), squareColor, squareShade),
-                                    ) else Brush.linearGradient(listOf(squareColor, squareColor)),
-                                )
+                                .background(squareColor)
                                 .combinedClickable(
                                     onClick = { if (haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onTap(square) },
                                     onLongClick = { if (haptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress); onLongPressFallback(square) },
@@ -1045,31 +1087,49 @@ private fun ChessBoard(
 
 @Composable
 private fun ChessPiece(piece: Piece, depth: Boolean, modifier: Modifier = Modifier, style: Int = 0) {
-    val light = piece.side == Side.WHITE
-    // Always draw the solid chess glyph. The Unicode "white" symbols are
-    // outlines, so tinting them ivory still leaves the pieces looking hollow.
-    val glyph = Piece(piece.type, Side.BLACK).symbol
-    val foreground = when (style) {
-        1 -> if (light) Color(0xFFFFFCF2) else Color(0xFF222222)
-        2 -> if (light) Color(0xFFFFF8E8) else Color(0xFF15263A)
-        else -> if (light) Color(0xFFFFF3DF) else Color(0xFF172331)
-    }
-    val edge = when (style) {
-        1 -> if (light) Color(0xFFB17A45) else Color(0xFF5D402A)
-        2 -> if (light) Color(0xFF6D4934) else Color(0xFFD5E5F5)
-        else -> if (light) Color(0xFF9C6B49) else Color(0xFF5D7188)
-    }
-    val shadow = if (light) Color(0xFF6D4934) else Color.Black
-    Box(modifier.semantics { contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}" }, contentAlignment = Alignment.Center) {
-        if (depth) Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = shadow.copy(.62f), modifier = Modifier.offset(y = 2.dp))
-        if (style != 2) listOf((-1).dp to 0.dp, 1.dp to 0.dp, 0.dp to (-1).dp, 0.dp to 1.dp).forEach { (x, y) ->
-            Text(glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = edge.copy(if (light) .78f else .42f), modifier = Modifier.offset(x, y))
+    Image(
+        painter = painterResource(pieceDrawable(style, piece)),
+        contentDescription = "${piece.side.name.lowercase()} ${piece.type.name.lowercase()}",
+        contentScale = ContentScale.Fit,
+        modifier = modifier,
+    )
+}
+
+private fun pieceDrawable(style: Int, piece: Piece): Int {
+    val key = "${if (piece.side == Side.WHITE) 'w' else 'b'}${piece.type.fen.lowercaseChar()}"
+    return when (style.coerceIn(0, 3)) {
+        1 -> when (key) {
+            "wk" -> R.drawable.piece_fantasy_wk; "wq" -> R.drawable.piece_fantasy_wq
+            "wr" -> R.drawable.piece_fantasy_wr; "wb" -> R.drawable.piece_fantasy_wb
+            "wn" -> R.drawable.piece_fantasy_wn; "wp" -> R.drawable.piece_fantasy_wp
+            "bk" -> R.drawable.piece_fantasy_bk; "bq" -> R.drawable.piece_fantasy_bq
+            "br" -> R.drawable.piece_fantasy_br; "bb" -> R.drawable.piece_fantasy_bb
+            "bn" -> R.drawable.piece_fantasy_bn; else -> R.drawable.piece_fantasy_bp
         }
-        Text(
-            glyph, fontFamily = FontFamily.Serif, fontSize = 35.sp, lineHeight = 36.sp, color = foreground,
-            modifier = Modifier.offset(y = (-1).dp),
-            style = TextStyle(shadow = Shadow(if (light) Color.White.copy(.82f) else Color.White.copy(.2f), Offset(-1f, -1f), if (depth) 1.8f else .4f)),
-        )
+        2 -> when (key) {
+            "wk" -> R.drawable.piece_spatial_wk; "wq" -> R.drawable.piece_spatial_wq
+            "wr" -> R.drawable.piece_spatial_wr; "wb" -> R.drawable.piece_spatial_wb
+            "wn" -> R.drawable.piece_spatial_wn; "wp" -> R.drawable.piece_spatial_wp
+            "bk" -> R.drawable.piece_spatial_bk; "bq" -> R.drawable.piece_spatial_bq
+            "br" -> R.drawable.piece_spatial_br; "bb" -> R.drawable.piece_spatial_bb
+            "bn" -> R.drawable.piece_spatial_bn; else -> R.drawable.piece_spatial_bp
+        }
+        3 -> when (key) {
+            "wk" -> R.drawable.piece_celtic_wk; "wq" -> R.drawable.piece_celtic_wq
+            "wr" -> R.drawable.piece_celtic_wr; "wb" -> R.drawable.piece_celtic_wb
+            "wn" -> R.drawable.piece_celtic_wn; "wp" -> R.drawable.piece_celtic_wp
+            "bk" -> R.drawable.piece_celtic_bk; "bq" -> R.drawable.piece_celtic_bq
+            "br" -> R.drawable.piece_celtic_br; "bb" -> R.drawable.piece_celtic_bb
+            "bn" -> R.drawable.piece_celtic_bn; else -> R.drawable.piece_celtic_bp
+        }
+        else -> when (key) {
+            "wk" -> R.drawable.piece_rhosgfx_wk; "wq" -> R.drawable.piece_rhosgfx_wq
+            "wr" -> R.drawable.piece_rhosgfx_wr; "wb" -> R.drawable.piece_rhosgfx_wb
+            "wn" -> R.drawable.piece_rhosgfx_wn; "wp" -> R.drawable.piece_rhosgfx_wp
+            "bk" -> R.drawable.piece_rhosgfx_bk; "bq" -> R.drawable.piece_rhosgfx_bq
+            "br" -> R.drawable.piece_rhosgfx_br; "bb" -> R.drawable.piece_rhosgfx_bb
+            "bn" -> R.drawable.piece_rhosgfx_bn; else -> R.drawable.piece_rhosgfx_bp
+        }
     }
 }
 
@@ -1078,11 +1138,11 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Palette, contentDescription = null, tint = Accent, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(7.dp))
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Spacer(Modifier.width(5.dp))
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 listOf(BoardLight to BoardDark, Color(0xFFEEEED2) to Color(0xFF769656), Color(0xFFD8E8F4) to Color(0xFF4D7EA8), Color(0xFFE6E6E6) to Color(0xFF5D6470)).forEachIndexed { index, colors ->
                     Box(
-                        Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                        Modifier.size(30.dp).clip(RoundedCornerShape(9.dp))
                             .border(if (settings.boardTheme == index) 2.dp else 0.dp, Accent, RoundedCornerShape(10.dp))
                             .clickable { onUpdate(settings.copy(boardTheme = index)) },
                     ) {
@@ -1091,16 +1151,16 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
                 }
             }
             Box(Modifier.width(1.dp).height(26.dp).background(Muted.copy(.2f)))
-            Spacer(Modifier.width(7.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                repeat(3) { index ->
+            Spacer(Modifier.width(5.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                repeat(4) { index ->
                     Box(
-                        Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                        Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
                             .background(if (settings.pieceStyle == index) Accent.copy(.14f) else Color.Transparent)
                             .border(if (settings.pieceStyle == index) 1.5.dp else 0.dp, Accent, RoundedCornerShape(11.dp))
                             .clickable { onUpdate(settings.copy(pieceStyle = index)) },
                         contentAlignment = Alignment.Center,
-                    ) { ChessPiece(Piece(PieceType.KNIGHT, if (index == 2) Side.WHITE else Side.BLACK), index != 2, Modifier.size(32.dp), index) }
+                    ) { ChessPiece(Piece(PieceType.KNIGHT, if (index % 2 == 0) Side.WHITE else Side.BLACK), false, Modifier.size(29.dp), index) }
                 }
             }
         }
@@ -1391,6 +1451,11 @@ private fun AnalysisScreen(vm: MainViewModel) {
 
 @Composable
 private fun AnalyzingScreen(level: AnalysisLevel, onStop: () -> Unit) {
+    var stage by remember { mutableStateOf(0) }
+    val stages = listOf("Starting the local engine", "Checking tactics and captures", "Building a clear coach answer")
+    LaunchedEffect(Unit) {
+        while (true) { delay(900); stage = (stage + 1) % stages.size }
+    }
     val transition = rememberInfiniteTransition(label = "analysis")
     val pulse by transition.animateFloat(
         initialValue = .96f, targetValue = 1.04f,
@@ -1403,10 +1468,31 @@ private fun AnalyzingScreen(level: AnalysisLevel, onStop: () -> Unit) {
             }
             Text("Finding the clearest line…", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 28.dp))
             Text("${level.title} analysis", style = MaterialTheme.typography.labelMedium, color = Accent, modifier = Modifier.padding(top = 8.dp))
+            Text(stages[stage], color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp))
             Row(Modifier.padding(top = 22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 repeat(3) { index -> Box(Modifier.size((9 + index * 2).dp).scale(if (index == 1) pulse else 1f).clip(CircleShape).background(listOf(Coral, Sunny, Accent)[index])) }
             }
             TextButton(onClick = onStop, modifier = Modifier.padding(top = 20.dp)) { Icon(Icons.Rounded.Stop, null); Spacer(Modifier.width(6.dp)); Text("Stop analysis") }
+        }
+    }
+}
+
+@Composable
+private fun ReviewLoadingScreen(progress: Int, total: Int, onStop: () -> Unit) {
+    val fraction = if (total == 0) 0f else progress.toFloat() / total
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(painterResource(R.drawable.art_analysis), null, contentScale = ContentScale.Fit, modifier = Modifier.size(230.dp))
+            Text("Reviewing both sides", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text("Move ${progress.coerceAtMost(total)} of $total", color = Muted, modifier = Modifier.padding(top = 8.dp))
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(9.dp).clip(CircleShape),
+                color = Accent,
+                trackColor = SurfaceDark,
+            )
+            Text("Deep checks are time-capped so this always finishes.", color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 13.dp))
+            TextButton(onClick = onStop, modifier = Modifier.padding(top = 14.dp)) { Icon(Icons.Rounded.Stop, null); Spacer(Modifier.width(6.dp)); Text("Close review") }
         }
     }
 }
@@ -1597,14 +1683,8 @@ private fun SettingsScreen(vm: MainViewModel) {
                     ChoicePill("Light", !settings.darkMode) { vm.updateSettings(settings.copy(darkMode = false)) }
                     ChoicePill("Dark", settings.darkMode) { vm.updateSettings(settings.copy(darkMode = true)) }
                 }
-                SettingChoice("Board style", Icons.Rounded.GridOn, if (settings.boardDepth) "3D depth" else "2D flat") {
-                    ChoicePill("2D", !settings.boardDepth) { vm.updateSettings(settings.copy(boardDepth = false)) }
-                    ChoicePill("3D", settings.boardDepth) { vm.updateSettings(settings.copy(boardDepth = true)) }
-                }
-                SettingChoice("Piece style", Icons.Rounded.ViewInAr, if (settings.pieceDepth) "3D sculpted" else "2D classic") {
-                    ChoicePill("2D", !settings.pieceDepth) { vm.updateSettings(settings.copy(pieceDepth = false)) }
-                    ChoicePill("3D", settings.pieceDepth) { vm.updateSettings(settings.copy(pieceDepth = true)) }
-                }
+                SettingInfo(Icons.Rounded.GridOn, "Board & pieces", "Four board palettes and four filled piece sets")
+                BoardLookPicker(settings, vm::updateSettings)
                 SettingToggle(Icons.Rounded.AutoAwesome, "Animations", "Smooth and responsive", settings.animations) { vm.updateSettings(settings.copy(animations = it)) }
             }
         }
