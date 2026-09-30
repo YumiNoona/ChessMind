@@ -77,6 +77,10 @@ data class AppUiState(
     val selectedTimeMinutes: Int = 5,
     val whiteTimeSeconds: Int = 300,
     val blackTimeSeconds: Int = 300,
+    val clockStarted: Boolean = false,
+    val aiDrawOffer: Boolean = false,
+    val aiHasOfferedDraw: Boolean = false,
+    val drawStatus: String? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -250,12 +254,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             aiRating = opponent, aiThinking = false, gameReview = emptyList(), reviewLoading = false,
             reviewProgress = 0, reviewTotal = 0, gameRatingBefore = state.progress.rating, lastRatingChange = 0,
             whiteTimeSeconds = clockSeconds, blackTimeSeconds = clockSeconds,
+            clockStarted = false, aiDrawOffer = false, aiHasOfferedDraw = false, drawStatus = null,
             flipped = false,
         )
     }
 
     fun tickGameClock() {
-        if (state.gameResult != null || state.selectedTimeMinutes == 0) return
+        if (state.gameResult != null || state.selectedTimeMinutes == 0 || !state.clockStarted) return
         if (state.gamePosition.sideToMove == Side.WHITE) {
             val next = (state.whiteTimeSeconds - 1).coerceAtLeast(0)
             state = state.copy(whiteTimeSeconds = next)
@@ -337,6 +342,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         finishGame(if (state.gameMode == GameMode.AI) "AI wins by resignation" else "${state.gamePosition.sideToMove.opposite().name.lowercase().replaceFirstChar { it.uppercase() }} wins by resignation")
     }
 
+    fun offerDraw() {
+        if (state.gameResult != null || state.gameMoves.isEmpty() || state.aiThinking) return
+        if (state.gameMode == GameMode.FRIEND) {
+            finishGame("Draw by agreement")
+            return
+        }
+        if (drawIsReasonable(state.gamePosition, state.gameMoves.size)) {
+            finishGame("Draw by agreement")
+        } else {
+            state = state.copy(drawStatus = "The AI declined—the position still has plenty of play.")
+        }
+    }
+
+    fun respondToAiDraw(accept: Boolean) {
+        if (!state.aiDrawOffer || state.gameResult != null) return
+        if (accept) finishGame("Draw by agreement")
+        else state = state.copy(aiDrawOffer = false, drawStatus = "You declined the AI's draw offer.")
+    }
+
     fun buildGameReview() {
         if (state.gameMoves.isEmpty()) return
         viewModelScope.launch {
@@ -371,6 +395,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(
             gamePosition = after, gameSelected = null,
             gameMoves = state.gameMoves + GameMoveRecord(before, after, move, notation, before.sideToMove),
+            clockStarted = true, drawStatus = null,
             flipped = if (state.gameMode == GameMode.FRIEND && state.settings.autoFlipFriend) !state.flipped else state.flipped,
         )
         val legal = ChessRules.legalMoves(after)
@@ -379,7 +404,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "${before.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} wins by checkmate"
             } else "Draw by stalemate"
             finishGame(result)
+        } else if (
+            state.gameMode == GameMode.AI && before.sideToMove == Side.BLACK && !state.aiHasOfferedDraw &&
+            drawIsReasonable(after, state.gameMoves.size)
+        ) {
+            state = state.copy(aiDrawOffer = true, aiHasOfferedDraw = true)
         }
+    }
+
+    private fun drawIsReasonable(position: Position, plies: Int): Boolean {
+        val values = mapOf(PieceType.PAWN to 1, PieceType.KNIGHT to 3, PieceType.BISHOP to 3, PieceType.ROOK to 5, PieceType.QUEEN to 9, PieceType.KING to 0)
+        val balance = kotlin.math.abs(position.board.sumOf { piece ->
+            if (piece == null) 0 else (values[piece.type] ?: 0) * if (piece.side == Side.WHITE) 1 else -1
+        })
+        val (minimumPlies, maximumImbalance) = when (state.settings.aiDrawPolicy) {
+            0 -> 44 to 0
+            2 -> 16 to 2
+            else -> 28 to 1
+        }
+        return plies >= minimumPlies && balance <= maximumImbalance
     }
 
     private fun finishGame(result: String) {
@@ -401,7 +444,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             store.saveProgress(progress)
         }
-        state = state.copy(gameResult = result, aiThinking = false, progress = progress, lastRatingChange = ratingChange)
+        state = state.copy(gameResult = result, aiThinking = false, aiDrawOffer = false, progress = progress, lastRatingChange = ratingChange)
     }
 
     private fun humanLikeMove(position: Position, legal: List<Move>, best: Move?): Move? {

@@ -2,13 +2,13 @@
 
 ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Current version: 3.0.0.** The app now includes complete local chess matches against adaptive AI or a nearby friend, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
+> **Current version: 4.0.0.** The app now includes complete timed local matches against adaptive AI or a nearby friend, draw offers and agreements, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
 
 ## What works
 
 - Expressive sky-blue Material 3 interface with a complete dark theme and focused Home–History dock
 - Bundled Space Grotesk and JetBrains Mono typography
-- Ten original transparent ChessMind illustrations used across onboarding, scan, import, setup, practice, history, analysis, settings, profile, and results
+- Original transparent ChessMind illustrations used across onboarding, scan, setup, practice, history, analysis, settings, profile, and results, including a dedicated Set Position scene
 - Full illustrated launch experience sourced from `public/splash.png` and adaptive launcher artwork from `public/logo.png`
 - Four board palettes and five crisp filled piece sets (rhosgfx, fantasy, spatial, celtic, and Chessnut) with no synthetic outlines or piece shadows
 - Short first-run onboarding and edge-to-edge phone layout
@@ -20,6 +20,7 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Adaptive offline AI opponents with Gentle, Adaptive, and Tough strength profiles, configurable pace, and varied openings
 - Local pass-and-play friend matches with legal move enforcement and optional automatic board flipping
 - 3, 5, and 10-minute clocks plus an unlimited mode for both AI and friend matches
+- Clocks begin only after White's first move; both match modes support draw agreements, with position-aware AI draw decisions
 - Iron, Silver, Gold, Platinum, Diamond, Master, and Grandmaster leagues
 - Persistent points, games, wins, and draws stored only on device, with per-match point changes and league progress shown after every AI game
 - Full-game review for both sides with best-move comparisons, visible progress, per-position time limits, and a guaranteed quick-review fallback
@@ -96,7 +97,7 @@ Core features run offline. Positions, statistics, and history use app-private lo
 
 ## Known limitation
 
-Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 3.0.0 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
+Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 4.0.0 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
 
 ## Contributing
 

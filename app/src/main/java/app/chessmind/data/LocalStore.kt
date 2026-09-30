@@ -45,6 +45,8 @@ data class UserSettings(
     val aiStrength: Int = 0,
     val aiVariedOpenings: Boolean = true,
     val showAiThinking: Boolean = true,
+    val aiDrawPolicy: Int = 1,
+    val confirmResign: Boolean = true,
 )
 
 data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
@@ -117,6 +119,8 @@ class LocalStore(context: Context) {
         aiStrength = preferences.getInt("setting_ai_strength", 0),
         aiVariedOpenings = preferences.getBoolean("setting_ai_varied_openings", true),
         showAiThinking = preferences.getBoolean("setting_show_ai_thinking", true),
+        aiDrawPolicy = preferences.getInt("setting_ai_draw_policy", 1),
+        confirmResign = preferences.getBoolean("setting_confirm_resign", true),
     )
 
     fun saveSettings(value: UserSettings) = preferences.edit {
@@ -139,6 +143,8 @@ class LocalStore(context: Context) {
         putInt("setting_ai_strength", value.aiStrength)
         putBoolean("setting_ai_varied_openings", value.aiVariedOpenings)
         putBoolean("setting_show_ai_thinking", value.showAiThinking)
+        putInt("setting_ai_draw_policy", value.aiDrawPolicy)
+        putBoolean("setting_confirm_resign", value.confirmResign)
     }
 
     fun profile(): LocalProfile = LocalProfile(
@@ -194,7 +200,8 @@ class LocalStore(context: Context) {
             .put("showLastMove", settings().showLastMove).put("showMoveList", settings().showMoveList)
             .put("autoFlipFriend", settings().autoFlipFriend).put("defaultTimeMinutes", settings().defaultTimeMinutes)
             .put("aiMoveDelayMs", settings().aiMoveDelayMs).put("aiStrength", settings().aiStrength)
-            .put("aiVariedOpenings", settings().aiVariedOpenings).put("showAiThinking", settings().showAiThinking))
+            .put("aiVariedOpenings", settings().aiVariedOpenings).put("showAiThinking", settings().showAiThinking)
+            .put("aiDrawPolicy", settings().aiDrawPolicy).put("confirmResign", settings().confirmResign))
         .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .put("play", JSONObject().put("rating", progress().rating).put("games", progress().games)
             .put("wins", progress().wins).put("draws", progress().draws))
@@ -233,6 +240,8 @@ class LocalStore(context: Context) {
                 putInt("setting_ai_strength", settings.optInt("aiStrength", 0))
                 putBoolean("setting_ai_varied_openings", settings.optBoolean("aiVariedOpenings", true))
                 putBoolean("setting_show_ai_thinking", settings.optBoolean("showAiThinking", true))
+                putInt("setting_ai_draw_policy", settings.optInt("aiDrawPolicy", 1))
+                putBoolean("setting_confirm_resign", settings.optBoolean("confirmResign", true))
             }
             if (profile != null) {
                 putString("profile_name", profile.optString("name", "Chess player"))

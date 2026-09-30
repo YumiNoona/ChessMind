@@ -128,6 +128,7 @@ import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.AllInclusive
+import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -322,7 +323,7 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
             AnimatedContent(
                 targetState = state.screen,
                 transitionSpec = {
-                    val duration = if (state.settings.animations) 150 else 0
+                    val duration = if (state.settings.animations) 220 else 0
                     fadeIn(tween(duration)) togetherWith fadeOut(tween(duration))
                 },
                 label = "screen",
@@ -365,10 +366,10 @@ private fun SplashScreen(onFinished: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.splash_art),
+            painter = painterResource(R.drawable.splash_art_portrait),
             contentDescription = "ChessMind",
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().height(360.dp),
+            modifier = Modifier.fillMaxWidth().height(360.dp).scale(2.05f),
         )
     }
 }
@@ -451,7 +452,7 @@ private fun HomeScreen(vm: MainViewModel) {
                 Image(
                     painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.width(386.dp).height(322.dp).align(Alignment.TopEnd).offset(x = 86.dp, y = (-12).dp),
+                    modifier = Modifier.width(386.dp).height(322.dp).align(Alignment.TopEnd).offset(x = 52.dp, y = (-12).dp),
                 )
                 Text(
                     "SOLVE A\nPOSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White,
@@ -468,7 +469,7 @@ private fun HomeScreen(vm: MainViewModel) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.PLAY_SELECT) }
-                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 198.dp, artOffsetX = 30.dp, artOffsetY = (-16).dp) { vm.navigate(AppScreen.SETUP) }
             }
         }
         if (vm.state.history.isNotEmpty()) item {
@@ -626,6 +627,7 @@ private fun PlayModeCard(title: String, subtitle: String, detail: String, art: I
 @Composable
 private fun GameScreen(vm: MainViewModel) {
     val state = vm.state
+    var showResignConfirmation by remember { mutableStateOf(false) }
     val position = state.gamePosition
     val legal = ChessRules.legalMoves(position)
     val hints = state.gameSelected?.let { from -> legal.filter { it.from == from }.map { it.to }.toSet() }.orEmpty()
@@ -633,8 +635,8 @@ private fun GameScreen(vm: MainViewModel) {
     LaunchedEffect(state.aiThinking, state.gameMoves.size) {
         if (state.aiThinking) { delay(state.settings.aiMoveDelayMs.toLong()); vm.playAiMove() }
     }
-    LaunchedEffect(state.gameResult, state.selectedTimeMinutes) {
-        while (state.gameResult == null && state.selectedTimeMinutes > 0) {
+    LaunchedEffect(state.gameResult, state.selectedTimeMinutes, state.clockStarted) {
+        while (state.gameResult == null && state.selectedTimeMinutes > 0 && state.clockStarted) {
             delay(1_000)
             vm.tickGameClock()
         }
@@ -651,7 +653,12 @@ private fun GameScreen(vm: MainViewModel) {
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(if (state.aiThinking && state.settings.showAiThinking) "Opponent is thinking…" else if (state.gameResult != null) state.gameResult else "${position.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} to move", fontWeight = FontWeight.Bold)
-                    Text(if (state.gameMode == GameMode.AI) "${league.name} rival · ${state.aiRating} points" else "Pass the board after each move", color = Muted, fontSize = 12.sp)
+                    Text(
+                        if (!state.clockStarted && state.selectedTimeMinutes > 0) "Clock starts after White's first move"
+                        else if (state.gameMode == GameMode.AI) "${league.name} rival · ${state.aiRating} points"
+                        else "Pass the board after each move",
+                        color = Muted, fontSize = 12.sp,
+                    )
                 }
                 if (state.selectedTimeMinutes > 0) {
                     Column(horizontalAlignment = Alignment.End) {
@@ -682,8 +689,27 @@ private fun GameScreen(vm: MainViewModel) {
                 }
             }
         }
+        state.drawStatus?.let { message -> item {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Sunny.copy(.34f)).padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Handshake, null, tint = Ink, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(9.dp)); Text(message, fontSize = 12.sp, color = Ink)
+            }
+        } }
         if (state.gameResult == null) item {
-            TextButton(onClick = vm::resignGame, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Flag, null); Spacer(Modifier.width(6.dp)); Text("Resign game") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Button(
+                    onClick = vm::offerDraw, enabled = state.gameMoves.isNotEmpty() && !state.aiThinking,
+                    modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark, contentColor = Ink),
+                ) { Icon(Icons.Rounded.Handshake, null); Spacer(Modifier.width(6.dp)); Text(if (state.gameMode == GameMode.AI) "Offer draw" else "Agree draw") }
+                TextButton(
+                    onClick = { if (state.settings.confirmResign) showResignConfirmation = true else vm.resignGame() },
+                    modifier = Modifier.weight(1f).height(50.dp),
+                ) { Icon(Icons.Rounded.Flag, null); Spacer(Modifier.width(6.dp)); Text("Resign") }
+            }
         } else item {
             val currentLeague = leagueFor(state.progress.rating)
             val previousLeague = leagueFor(state.gameRatingBefore)
@@ -717,6 +743,21 @@ private fun GameScreen(vm: MainViewModel) {
         }
         item { Spacer(Modifier.height(20.dp)) }
     }
+    if (showResignConfirmation) AlertDialog(
+        onDismissRequest = { showResignConfirmation = false },
+        title = { Text("Resign this game?") },
+        text = { Text("The current side will lose the match.") },
+        confirmButton = { TextButton(onClick = { showResignConfirmation = false; vm.resignGame() }) { Text("Resign", color = Coral) } },
+        dismissButton = { TextButton(onClick = { showResignConfirmation = false }) { Text("Keep playing") } },
+    )
+    if (state.aiDrawOffer) AlertDialog(
+        onDismissRequest = { vm.respondToAiDraw(false) },
+        icon = { Icon(Icons.Rounded.Handshake, null, tint = Accent) },
+        title = { Text("The AI offers a draw") },
+        text = { Text("The material and position are balanced. Would you like to end the game as a draw?") },
+        confirmButton = { TextButton(onClick = { vm.respondToAiDraw(true) }) { Text("Accept draw") } },
+        dismissButton = { TextButton(onClick = { vm.respondToAiDraw(false) }) { Text("Play on") } },
+    )
 }
 
 @Composable
@@ -1822,6 +1863,7 @@ private fun SettingsScreen(vm: MainViewModel) {
                 TimeControlPicker(settings.defaultTimeMinutes) { vm.updateSettings(settings.copy(defaultTimeMinutes = it)) }
                 SettingToggle(Icons.Rounded.FlipCameraAndroid, "Auto-flip friend board", "Turn the board after every local move", settings.autoFlipFriend) { vm.updateSettings(settings.copy(autoFlipFriend = it)) }
                 SettingToggle(Icons.Rounded.Visibility, "Move list", "Show notation during a match", settings.showMoveList) { vm.updateSettings(settings.copy(showMoveList = it)) }
+                SettingToggle(Icons.Rounded.Flag, "Confirm resignation", "Prevent accidental match losses", settings.confirmResign) { vm.updateSettings(settings.copy(confirmResign = it)) }
             }
         }
         item {
@@ -1839,12 +1881,18 @@ private fun SettingsScreen(vm: MainViewModel) {
                 }
                 SettingToggle(Icons.Rounded.AutoAwesome, "Varied openings", "Avoid repeating the same early replies", settings.aiVariedOpenings) { vm.updateSettings(settings.copy(aiVariedOpenings = it)) }
                 SettingToggle(Icons.Rounded.Visibility, "Thinking status", "Show when the opponent is calculating", settings.showAiThinking) { vm.updateSettings(settings.copy(showAiThinking = it)) }
+                SettingInfo(Icons.Rounded.Handshake, "Draw behavior", when (settings.aiDrawPolicy) { 0 -> "Only in long, completely level games"; 2 -> "More willing in balanced positions"; else -> "Offers and accepts fair practical draws" })
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ChoicePill("Rare", settings.aiDrawPolicy == 0, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiDrawPolicy = 0)) }
+                    ChoicePill("Fair", settings.aiDrawPolicy == 1, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiDrawPolicy = 1)) }
+                    ChoicePill("Often", settings.aiDrawPolicy == 2, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiDrawPolicy = 2)) }
+                }
             }
         }
         item {
             SettingsSection("Analysis", Icons.Rounded.Analytics) {
                 SettingInfo(Icons.Rounded.Speed, "Adaptive engine", "Balanced automatically for speed, depth, and battery")
-                SettingInfo(Icons.Rounded.Info, "ChessMind 3.0.0", "Stockfish 19 on supported ARM devices")
+                SettingInfo(Icons.Rounded.Info, "ChessMind 4.0.0", "Stockfish 19 on supported ARM devices")
             }
         }
         item {
