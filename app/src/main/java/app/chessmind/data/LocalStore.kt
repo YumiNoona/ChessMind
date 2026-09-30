@@ -42,6 +42,9 @@ data class UserSettings(
     val autoFlipFriend: Boolean = false,
     val defaultTimeMinutes: Int = 5,
     val aiMoveDelayMs: Int = 650,
+    val aiStrength: Int = 0,
+    val aiVariedOpenings: Boolean = true,
+    val showAiThinking: Boolean = true,
 )
 
 data class LocalProfile(val name: String = "Chess player", val imageUri: String? = null)
@@ -111,6 +114,9 @@ class LocalStore(context: Context) {
         autoFlipFriend = preferences.getBoolean("setting_auto_flip_friend", false),
         defaultTimeMinutes = preferences.getInt("setting_default_time", 5),
         aiMoveDelayMs = preferences.getInt("setting_ai_move_delay", 650),
+        aiStrength = preferences.getInt("setting_ai_strength", 0),
+        aiVariedOpenings = preferences.getBoolean("setting_ai_varied_openings", true),
+        showAiThinking = preferences.getBoolean("setting_show_ai_thinking", true),
     )
 
     fun saveSettings(value: UserSettings) = preferences.edit {
@@ -130,6 +136,9 @@ class LocalStore(context: Context) {
         putBoolean("setting_auto_flip_friend", value.autoFlipFriend)
         putInt("setting_default_time", value.defaultTimeMinutes)
         putInt("setting_ai_move_delay", value.aiMoveDelayMs)
+        putInt("setting_ai_strength", value.aiStrength)
+        putBoolean("setting_ai_varied_openings", value.aiVariedOpenings)
+        putBoolean("setting_show_ai_thinking", value.showAiThinking)
     }
 
     fun profile(): LocalProfile = LocalProfile(
@@ -184,7 +193,8 @@ class LocalStore(context: Context) {
             .put("pieceStyle", settings().pieceStyle).put("dragToMove", settings().dragToMove)
             .put("showLastMove", settings().showLastMove).put("showMoveList", settings().showMoveList)
             .put("autoFlipFriend", settings().autoFlipFriend).put("defaultTimeMinutes", settings().defaultTimeMinutes)
-            .put("aiMoveDelayMs", settings().aiMoveDelayMs))
+            .put("aiMoveDelayMs", settings().aiMoveDelayMs).put("aiStrength", settings().aiStrength)
+            .put("aiVariedOpenings", settings().aiVariedOpenings).put("showAiThinking", settings().showAiThinking))
         .put("profile", JSONObject().put("name", profile().name).apply { profile().imageUri?.let { put("imageUri", it) } })
         .put("play", JSONObject().put("rating", progress().rating).put("games", progress().games)
             .put("wins", progress().wins).put("draws", progress().draws))
@@ -220,6 +230,9 @@ class LocalStore(context: Context) {
                 putBoolean("setting_auto_flip_friend", settings.optBoolean("autoFlipFriend", false))
                 putInt("setting_default_time", settings.optInt("defaultTimeMinutes", 5))
                 putInt("setting_ai_move_delay", settings.optInt("aiMoveDelayMs", 650))
+                putInt("setting_ai_strength", settings.optInt("aiStrength", 0))
+                putBoolean("setting_ai_varied_openings", settings.optBoolean("aiVariedOpenings", true))
+                putBoolean("setting_show_ai_thinking", settings.optBoolean("showAiThinking", true))
             }
             if (profile != null) {
                 putString("profile_name", profile.optString("name", "Chess player"))

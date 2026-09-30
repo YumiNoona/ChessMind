@@ -17,8 +17,9 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Strict FEN validation/import/export and common PGN import
 - Complete legal move generation, including check filtering, castling, en passant, and promotion
 - Four analysis presets: Beginner, Intermediate, Master, and God mode
-- Adaptive offline AI opponents rated slightly below the player
-- Local pass-and-play friend matches with legal move enforcement
+- Adaptive offline AI opponents with Gentle, Adaptive, and Tough strength profiles, configurable pace, and varied openings
+- Local pass-and-play friend matches with legal move enforcement and optional automatic board flipping
+- 3, 5, and 10-minute clocks plus an unlimited mode for both AI and friend matches
 - Iron, Silver, Gold, Platinum, Diamond, Master, and Grandmaster leagues
 - Persistent points, games, wins, and draws stored only on device, with per-match point changes and league progress shown after every AI game
 - Full-game review for both sides with best-move comparisons, visible progress, per-position time limits, and a guaranteed quick-review fallback
@@ -27,7 +28,7 @@ ChessMind is a private, offline-first Android chess solver and trainer. Capture 
 - Interactive analysis board with previous/next line controls, free legal play, reset, and re-analysis
 - Local analysis history plus JSON backup/restore
 - Local player profile with editable name and profile photo
-- Expressive grouped settings for theme, board and piece depth, animation, coordinates, legal hints, haptics, and contrast
+- Expressive grouped settings for appearance, drag-to-move controls, match clocks, AI behavior, coordinates, legal hints, haptics, and contrast
 - No account, analytics SDK, cloud engine, or image upload
 
 ## Project structure

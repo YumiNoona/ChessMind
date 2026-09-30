@@ -230,14 +230,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startGame(mode: GameMode) {
         val playerRating = state.progress.rating
-        val opponent = when {
+        val leagueOpponent = when {
             playerRating < 600 -> playerRating - Random.nextInt(170, 251)
             playerRating < 800 -> playerRating - Random.nextInt(110, 181)
             playerRating < 1_000 -> playerRating - Random.nextInt(80, 141)
             playerRating < 1_300 -> playerRating - Random.nextInt(60, 111)
             playerRating < 1_600 -> playerRating - Random.nextInt(45, 91)
             else -> playerRating - Random.nextInt(25, 71)
-        }.coerceAtLeast(150)
+        }
+        val opponent = (leagueOpponent + when (state.settings.aiStrength) {
+            -1 -> -100
+            1 -> 90
+            else -> 0
+        }).coerceAtLeast(150)
         val clockSeconds = state.selectedTimeMinutes * 60
         state = state.copy(
             screen = AppScreen.GAME, gameMode = mode, gamePosition = Position.START,
@@ -302,7 +307,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (result == null) engine.stop()
         val legal = ChessRules.legalMoves(position)
         val best = result?.principalVariationUci?.firstOrNull()?.let(::parseUciMove)?.takeIf { it in legal }
-        val accuracy = when {
+        val leagueAccuracy = when {
             state.aiRating < 400 -> .12
             state.aiRating < 600 -> .22
             state.aiRating < 800 -> .34
@@ -312,7 +317,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             state.aiRating < 2_000 -> .84
             else -> .92
         }
+        val accuracy = (leagueAccuracy + when (state.settings.aiStrength) {
+            -1 -> -.10
+            1 -> .08
+            else -> 0.0
+        }).coerceIn(.08, .96)
         val move = when {
+            state.settings.aiVariedOpenings && state.gameMoves.size <= 1 -> humanLikeMove(position, legal, best)
             best != null && Random.nextDouble() < accuracy -> best
             state.aiRating < 600 -> legal.randomOrNull()
             else -> humanLikeMove(position, legal, best)

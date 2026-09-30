@@ -127,6 +127,7 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -441,36 +442,33 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
         item {
-            Card(
-                onClick = { vm.navigate(AppScreen.SCANNER) },
-                shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF78A6FF), contentColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            ) {
-                Box(Modifier.fillMaxWidth().height(290.dp)) {
-                    Image(
-                        painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.width(360.dp).height(300.dp).align(Alignment.CenterEnd).offset(x = 76.dp, y = (-2).dp),
-                    )
-                    Column(Modifier.align(Alignment.TopStart).padding(24.dp).width(170.dp)) {
-                        Text("SOLVE A POSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White)
-                    }
-                    PlayfulActionButton(
-                        label = "Scan board",
-                        icon = Icons.Rounded.CameraAlt,
-                        onClick = { vm.navigate(AppScreen.SCANNER) },
-                        modifier = Modifier.align(Alignment.BottomStart).padding(22.dp),
-                        colors = listOf(Color.White, Color(0xFFEAF2FF)),
-                        contentColor = BrandBlue,
-                    )
-                }
+            Box(Modifier.fillMaxWidth().height(312.dp).clickable { vm.navigate(AppScreen.SCANNER) }) {
+                Box(
+                    Modifier.fillMaxWidth().height(290.dp).align(Alignment.BottomCenter)
+                        .shadow(11.dp, RoundedCornerShape(32.dp), spotColor = Color(0xFF78A6FF).copy(.32f))
+                        .clip(RoundedCornerShape(32.dp)).background(Color(0xFF78A6FF)),
+                )
+                Image(
+                    painter = painterResource(R.drawable.art_scan_board), contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.width(386.dp).height(322.dp).align(Alignment.TopEnd).offset(x = 86.dp, y = (-12).dp),
+                )
+                Text(
+                    "SOLVE A\nPOSITION", style = MaterialTheme.typography.headlineMedium, color = Color.White,
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 43.dp).width(170.dp),
+                )
+                PlayfulActionButton(
+                    label = "Scan board", icon = Icons.Rounded.CameraAlt,
+                    onClick = { vm.navigate(AppScreen.SCANNER) },
+                    modifier = Modifier.align(Alignment.BottomStart).padding(22.dp),
+                    colors = listOf(Color.White, Color(0xFFEAF2FF)), contentColor = BrandBlue,
+                )
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.PLAY_SELECT) }
-                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 202.dp, artOffsetX = 31.dp, artOffsetY = (-18).dp) { vm.navigate(AppScreen.SETUP) }
+                HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_board, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.SETUP) }
             }
         }
         if (vm.state.history.isNotEmpty()) item {
@@ -509,16 +507,15 @@ private fun HomeActionCard(
             Modifier.fillMaxWidth().height(158.dp).align(Alignment.BottomCenter)
                 .shadow(11.dp, RoundedCornerShape(27.dp), spotColor = color.copy(.32f))
                 .clip(RoundedCornerShape(27.dp)).background(color),
-        ) {
-            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.82f))
-            }
-        }
+        )
         Image(
             painterResource(art), null, contentScale = ContentScale.Fit,
             modifier = Modifier.size(artSize).align(Alignment.TopEnd).offset(x = artOffsetX, y = artOffsetY),
         )
+        Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(.82f))
+        }
     }
 }
 
@@ -592,13 +589,18 @@ private fun PlaySelectScreen(vm: MainViewModel) {
 @Composable
 private fun TimeControlPicker(selected: Int, onSelect: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        listOf(3 to "3 min", 5 to "5 min", 10 to "10 min", 0 to "∞").forEach { (minutes, label) ->
+        listOf(3 to "3 min", 5 to "5 min", 10 to "10 min", 0 to "Unlimited").forEach { (minutes, label) ->
             Surface(
                 onClick = { onSelect(minutes) }, modifier = Modifier.weight(1f).height(42.dp),
                 shape = RoundedCornerShape(14.dp), color = if (selected == minutes) Accent else MaterialTheme.colorScheme.background,
                 contentColor = if (selected == minutes) Color.White else Ink,
                 shadowElevation = if (selected == minutes) 4.dp else 0.dp,
-            ) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) } }
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (minutes == 0) Icon(Icons.Rounded.AllInclusive, contentDescription = label, modifier = Modifier.size(22.dp))
+                    else Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
         }
     }
 }
@@ -648,7 +650,7 @@ private fun GameScreen(vm: MainViewModel) {
                 Image(painterResource(league.art), null, modifier = Modifier.size(54.dp), contentScale = ContentScale.Fit)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (state.aiThinking) "Opponent is thinking…" else if (state.gameResult != null) state.gameResult else "${position.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} to move", fontWeight = FontWeight.Bold)
+                    Text(if (state.aiThinking && state.settings.showAiThinking) "Opponent is thinking…" else if (state.gameResult != null) state.gameResult else "${position.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} to move", fontWeight = FontWeight.Bold)
                     Text(if (state.gameMode == GameMode.AI) "${league.name} rival · ${state.aiRating} points" else "Pass the board after each move", color = Muted, fontSize = 12.sp)
                 }
                 if (state.selectedTimeMinutes > 0) {
@@ -657,7 +659,7 @@ private fun GameScreen(vm: MainViewModel) {
                         Spacer(Modifier.height(5.dp))
                         ClockPill("Black", state.blackTimeSeconds, position.sideToMove == Side.BLACK)
                     }
-                } else if (state.aiThinking) Text("•••", color = Accent, fontSize = 22.sp)
+                } else if (state.aiThinking && state.settings.showAiThinking) Text("•••", color = Accent, fontSize = 22.sp)
             }
         }
         item { BoardLookPicker(state.settings, vm::updateSettings) }
@@ -1820,11 +1822,23 @@ private fun SettingsScreen(vm: MainViewModel) {
                 TimeControlPicker(settings.defaultTimeMinutes) { vm.updateSettings(settings.copy(defaultTimeMinutes = it)) }
                 SettingToggle(Icons.Rounded.FlipCameraAndroid, "Auto-flip friend board", "Turn the board after every local move", settings.autoFlipFriend) { vm.updateSettings(settings.copy(autoFlipFriend = it)) }
                 SettingToggle(Icons.Rounded.Visibility, "Move list", "Show notation during a match", settings.showMoveList) { vm.updateSettings(settings.copy(showMoveList = it)) }
+            }
+        }
+        item {
+            SettingsSection("AI opponent", Icons.Rounded.SmartToy) {
+                SettingInfo(Icons.Rounded.Psychology, "Rival strength", when (settings.aiStrength) { -1 -> "Gentler opponents and more natural mistakes"; 1 -> "Stronger opponents with cleaner play"; else -> "Adapts just below your current league" })
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ChoicePill("Gentle", settings.aiStrength == -1, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiStrength = -1)) }
+                    ChoicePill("Adaptive", settings.aiStrength == 0, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiStrength = 0)) }
+                    ChoicePill("Tough", settings.aiStrength == 1, Modifier.weight(1f)) { vm.updateSettings(settings.copy(aiStrength = 1)) }
+                }
                 SettingChoice("AI move pace", Icons.Rounded.SmartToy, when (settings.aiMoveDelayMs) { 350 -> "Fast"; 1_000 -> "Calm"; else -> "Natural" }) {
                     ChoicePill("Fast", settings.aiMoveDelayMs == 350) { vm.updateSettings(settings.copy(aiMoveDelayMs = 350)) }
                     ChoicePill("Natural", settings.aiMoveDelayMs == 650) { vm.updateSettings(settings.copy(aiMoveDelayMs = 650)) }
                     ChoicePill("Calm", settings.aiMoveDelayMs == 1_000) { vm.updateSettings(settings.copy(aiMoveDelayMs = 1_000)) }
                 }
+                SettingToggle(Icons.Rounded.AutoAwesome, "Varied openings", "Avoid repeating the same early replies", settings.aiVariedOpenings) { vm.updateSettings(settings.copy(aiVariedOpenings = it)) }
+                SettingToggle(Icons.Rounded.Visibility, "Thinking status", "Show when the opponent is calculating", settings.showAiThinking) { vm.updateSettings(settings.copy(showAiThinking = it)) }
             }
         }
         item {
@@ -1900,9 +1914,9 @@ private fun SettingChoice(
 }
 
 @Composable
-private fun ChoicePill(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ChoicePill(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
-        onClick = onClick,
+        onClick = onClick, modifier = modifier,
         color = if (selected) Accent else Color.Transparent,
         contentColor = if (selected) Color.White else Muted,
         shape = RoundedCornerShape(11.dp),
