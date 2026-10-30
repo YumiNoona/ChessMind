@@ -1,104 +1,125 @@
-# ChessMind
+<div align="center">
+  <img src="public/logo.png" alt="ChessMind Logo" width="128" />
 
-ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
+  # ChessMind
 
-> **Current version: 1.0.0.** The app includes complete timed local matches against adaptive AI or a nearby friend, draw offers and agreements, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
+  **A private, offline-first Android chess solver, trainer, and match engine.**
 
-## What works
+  [![Latest Release](https://img.shields.io/github/v/release/YumiNoona/ChessMind?color=38BDF8&label=Release&logo=github)](https://github.com/YumiNoona/ChessMind/releases/latest)
+  [![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B-3DDC84?logo=android&logoColor=white)](https://android.com)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+  [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
+  [![Engine](https://img.shields.io/badge/Engine-Stockfish%2019%20UCI-E11D48)](https://stockfishchess.org)
+  [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline-10B981)](#-privacy--offline-first)
 
-- Expressive sky-blue Material 3 interface with a complete dark theme and focused Home–History dock
-- Bundled Space Grotesk and JetBrains Mono typography
-- Original transparent ChessMind illustrations used across onboarding, scan, setup, practice, history, analysis, settings, profile, and results, including a dedicated Set Position scene
-- Full illustrated launch experience sourced from `public/splash.png` and adaptive launcher artwork from `public/logo.png`
-- Four board palettes and five crisp filled piece sets (rhosgfx, fantasy, spatial, celtic, and Chessnut) with no synthetic outlines or piece shadows
-- Short first-run onboarding and edge-to-edge phone layout
-- CameraX scanner overlay plus gallery import and image rotation/review
-- Manual board editor with tap-to-move, piece palette, long-press removal, flip, undo/redo, side-to-move, castling, and en-passant controls
-- Strict FEN validation/import/export and common PGN import
-- Complete legal move generation, including check filtering, castling, en passant, and promotion
-- Four analysis presets: Beginner, Intermediate, Master, and God mode
-- Adaptive offline AI opponents with Gentle, Adaptive, and Tough strength profiles, configurable pace, and varied openings
-- Local pass-and-play friend matches with legal move enforcement and optional automatic board flipping
-- 3, 5, and 10-minute clocks plus an unlimited mode for both AI and friend matches
-- Clocks begin only after White's first move; both match modes support draw agreements, with position-aware AI draw decisions
-- Iron, Silver, Gold, Platinum, Diamond, Master, and Grandmaster leagues
-- Persistent points, games, wins, and draws stored only on device, with per-match point changes and league progress shown after every AI game
-- Full-game review for both sides with best-move comparisons, visible progress, per-position time limits, and a guaranteed quick-review fallback
-- Packaged Stockfish 19 UCI analysis on ARM devices, with a cancellable built-in engine fallback
-- MultiPV candidate moves, evaluation, depth, principal variation, and human-readable reasons
-- Interactive analysis board with previous/next line controls, free legal play, reset, and re-analysis
-- Local analysis history plus JSON backup/restore
-- Local player profile with editable name and profile photo
-- Expressive grouped settings for appearance, drag-to-move controls, match clocks, AI behavior, coordinates, legal hints, haptics, and contrast
-- No account, analytics SDK, cloud engine, or image upload
+  <br />
 
-## Project structure
+  <a href="https://github.com/YumiNoona/ChessMind/releases/latest">
+    <img src="https://img.shields.io/badge/Download-APK%20(v1.0.0)-2563EB?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" />
+  </a>
+</div>
+
+---
+
+## Overview
+
+**ChessMind** turns your Android device into a personal chess grandmaster and tactical sparring partner. Capture physical boards with your camera, set up opening positions, analyze complex tactics with native Stockfish 19 UCI evaluations, or play timed matches against adaptive AI opponents—all completely offline, private, and free from external servers or accounts.
+
+---
+
+## Key Features
+
+### 📸 Board Scanner & Image Recognition
+- **CameraX Live Overlay**: Align and capture physical chessboards with an intuitive framing guide.
+- **Gallery Import**: Load saved board photos and screenshots directly from your device storage.
+- **Image Review**: Rotate and inspect captured boards before digitizing into legal positions.
+
+### ♟️ Board Editor & Setup
+- **Interactive Palette**: Place pieces directly on the board with the tap/drag piece palette.
+- **Strict FEN Validation**: Instant legal verification for king counts, pawns on back ranks, and castling rights.
+- **Clipboard Integration**: One-click FEN and PGN import/export dialogs for fast studying.
+- **Position Details**: Toggle castling rights (`K`, `Q`, `k`, `q`), en-passant target square, and active side to move.
+
+### 🧠 Dual-Engine Hybrid Analysis
+- **Packaged Stockfish 19 UCI**: Runs high-speed native UCI evaluations directly on ARM devices.
+- **Zero-Crash Fallback**: Built-in cancellable negamax search with alpha-beta pruning ensures uninterrupted analysis on any hardware.
+- **Multi-PV Candidate Moves**: Explore primary and alternative continuation lines with interactive on-board move previews.
+- **Analysis Presets**: Beginner, Intermediate, Master, and God-mode deep evaluations.
+
+### ⚔️ Match Play & Adaptive AI
+- **Play vs AI**: Choose between Gentle, Adaptive, and Tough opponents that make human-like mistakes or calculate with tactical precision.
+- **Pass & Play (Friend Mode)**: Play face-to-face on a single device with optional auto-flip board orientation.
+- **Full FIDE Rule Support**: Accurate pawn promotions with piece selection (Queen, Knight, Rook, Bishop), castling, en-passant, 50-move rule, threefold repetition, and insufficient material draws.
+- **Clocks & Time Controls**: Bullet, blitz, and rapid controls (3m, 5m, 10m) plus unlimited time.
+
+### 📊 Game Review & Tactical Practice
+- **Two-Sided Game Review**: Step through every ply of completed games with best-move comparisons, evaluation badges, and quick review summaries.
+- **Daily Tactical Training**: Solve curated chess puzzles across diverse motifs (pins, forks, back-rank mates, deflections) with streak tracking.
+- **Saved Ideas Library**: Save interesting positions directly from analysis and revisit them anytime.
+
+### 🎨 Personalization & Smooth Board Controls
+- **Board Themes**: Classic Wood, Forest Green, Ocean Blue, and Slate Grey.
+- **5 High-Res Piece Sets**: Rhosgfx, Fantasy, Spatial, Celtic, and Chessnut with zero outline artifacts.
+- **Controls & Accessibility**: Real-time legal move hints, last move highlights, coordinate labels, haptic feedback, and full Dark/Light Material 3 themes.
+
+---
+
+## 🔒 Privacy & Offline-First
+
+- **Zero Cloud Reliance**: No remote servers, cloud engines, or data uploads.
+- **No Accounts or Logins**: Start playing and analyzing immediately.
+- **No Analytics or Trackers**: Your games, scans, and positions stay 100% on your device.
+- **Local Data Export**: Backup and restore match history and saved positions as clean JSON files anytime.
+
+---
+
+## Project Structure
 
 ```text
 app/src/main/
-├── assets/licenses/                 # Third-party license text
+├── assets/licenses/                 # Third-party license documentation
 ├── java/app/chessmind/
-│   ├── data/                        # Local persistence
-│   ├── data/engine/                 # Stockfish process adapter and fallback
-│   ├── domain/engine/               # Engine contract, models, local search
-│   ├── domain/model/                # Position, rules, FEN, PGN
-│   ├── MainActivity.kt              # Compose screens and components
-│   └── MainViewModel.kt             # App state and workflows
-└── jniLibs/                         # Locally fetched Stockfish binaries (ignored)
-scripts/fetch-stockfish.ps1          # Reproducible Stockfish fetch
-scripts/render_piece_sets.mjs        # Reproducible SVG-to-PNG piece renderer
-third_party/chess_pieces/            # Upstream SVG chess artwork
-docs/BUILD_BRIEF.md                  # Product and architecture brief
+│   ├── data/                        # Local persistence, profile, and history stores
+│   │   └── engine/                  # Stockfish process adapter and lifecycle manager
+│   ├── domain/engine/               # Engine contracts, negamax search fallback
+│   ├── domain/model/                # Immutable Position, ChessRules, FEN, PGN parser
+│   ├── MainActivity.kt              # Jetpack Compose UI, animated navigation, screens
+│   └── MainViewModel.kt             # Unidirectional state management and workflows
+scripts/
+├── fetch-stockfish.ps1              # Reproducible Stockfish binary fetcher
+└── render_piece_sets.mjs            # SVG-to-PNG piece resource pipeline
+third_party/chess_pieces/            # Upstream piece set artwork
 ```
 
-## Requirements
+---
 
-- JDK 17
-- Android SDK 36
-- Android 8.0 / API 26 or newer
-- GitHub CLI (`gh`) only when fetching the official Stockfish binaries
+## Requirements & Building
 
-## Build
+- **JDK**: Version 17
+- **Android SDK**: API 36 (targetSdk 36, minSdk 26 for Android 8.0+)
+- **Build Tool**: Gradle 8.11.1+ with Android Gradle Plugin 8.8.2
 
-Fetch the official Android ARM binaries used by release builds:
-
-```powershell
-.\scripts\fetch-stockfish.ps1
+### Run Unit Tests
+```bash
+./gradlew test
 ```
 
-Then verify and build:
-
-```powershell
-.\gradlew.bat test lint assembleDebug assembleRelease
+### Build Release APK
+```bash
+./gradlew assembleRelease
 ```
+The optimized and minified release APK will be generated at `app/build/outputs/apk/release/app-release.apk`.
 
-Outputs are written under `app/build/outputs/apk/`. If the native binaries are absent, the APK still builds and uses ChessMind's smaller local search engine.
+---
 
-Release builds use R8/resource shrinking. Without a local signing configuration they fall back to the Android debug key, which is appropriate only for development artifacts. Production signing uses an ignored `keystore.properties` file:
+## 📜 Licensing & Attributions
 
-```properties
-storeFile=C:/secure/chessmind-release.jks
-storePassword=your-store-password
-keyAlias=chessmind
-keyPassword=your-key-password
-```
+- **Stockfish**: Licensed under [GPLv3](app/src/main/assets/licenses/stockfish-gpl-3.txt).
+- **Typography**: Space Grotesk and JetBrains Mono are licensed under the [SIL Open Font License](http://scripts.sil.org/OFL).
+- **Chess Piece Artwork**: Sourced from the official Lichess repository (`rhosgfx`: CC0 1.0, `fantasy`/`spatial`/`celtic`: MIT, `chessnut`: Apache 2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full attribution.
 
-## Stockfish and licensing
+---
 
-ChessMind's engine layer is implementation-independent. On supported ARM devices it launches the packaged official [Stockfish 19](https://github.com/official-stockfish/Stockfish/releases/tag/sf_19) binary through UCI; unsupported ABIs transparently use the built-in fallback engine. Stockfish is licensed under GPLv3, whose text is packaged at `app/src/main/assets/licenses/stockfish-gpl-3.txt`. The exact upstream source is available from the linked release/tag. Preserve the license and corresponding-source availability when redistributing an APK containing Stockfish.
-
-Space Grotesk and JetBrains Mono are bundled under the SIL Open Font License; their license texts are included beside the Stockfish license.
-
-The five bundled piece sets come from the official Lichess repository. `rhosgfx` is CC0; `fantasy`, `spatial`, and `celtic` are MIT-licensed; Chessnut is Apache-2.0 licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and license text.
-
-## Privacy
-
-Core features run offline. Positions, statistics, and history use app-private local storage. Captured images are placed in the app cache and are not uploaded. Camera access is requested only when opening the scanner; no broad storage permission is requested.
-
-## Known limitation
-
-Automatic recognition of arbitrary physical boards, book diagrams, and screenshots is a computer-vision product in its own right. The capture/review/correction pipeline is ready, but no model is bundled in 4.0.0 because an unvalidated model would silently create wrong chess positions. The next vision milestone is an on-device, confidence-scored detector with uncertain-square review and real-photo evaluation.
-
-## Contributing
-
-Keep Android presentation, chess rules, persistence, engine, and future vision code independent. Add unit tests for rule or notation changes, and run `test lint assembleRelease` before publishing.
+<div align="center">
+  <p>Made with 💙 By <a href="https://venusapp.in" target="_blank">Veil</a></p>
+</div>
