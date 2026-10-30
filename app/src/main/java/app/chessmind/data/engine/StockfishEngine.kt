@@ -46,6 +46,21 @@ private class StockfishProcessEngine(private val context: Context) : ChessEngine
     private var output: BufferedReader? = null
 
     override suspend fun analyze(position: Position, level: AnalysisLevel): AnalysisResult = withContext(Dispatchers.IO) {
+        val legalMoves = ChessRules.legalMoves(position)
+        if (legalMoves.isEmpty()) {
+            val check = ChessRules.isInCheck(position, position.sideToMove)
+            return@withContext AnalysisResult(
+                bestMove = "—",
+                evaluation = if (check) "Checkmate" else "Draw",
+                depth = 0,
+                explanation = if (check) "The side to move is checkmated." else "The position is stalemate.",
+                reasons = listOf(if (check) "No legal move can answer the check" else "No legal move is available"),
+                principalVariation = emptyList(),
+                principalVariationUci = emptyList(),
+                candidates = emptyList(),
+                engineName = "Stockfish 19 · Offline"
+            )
+        }
         mutex.withLock {
             ensureStarted()
             command("ucinewgame")
@@ -64,7 +79,21 @@ private class StockfishProcessEngine(private val context: Context) : ChessEngine
                 if (line.startsWith("bestmove ")) { bestUci = line.split(' ').getOrNull(1); break }
                 parseInfo(line)?.let { lines[it.multiPv] = it }
             }
-            val bestMove = parseMove(bestUci ?: error("Stockfish returned no move"))
+            if (bestUci == "(none)" || bestUci == null) {
+                val check = ChessRules.isInCheck(position, position.sideToMove)
+                return@withContext AnalysisResult(
+                    bestMove = "—",
+                    evaluation = if (check) "Checkmate" else "Draw",
+                    depth = 0,
+                    explanation = if (check) "The side to move is checkmated." else "The position is stalemate.",
+                    reasons = listOf(if (check) "No legal move can answer the check" else "No legal move is available"),
+                    principalVariation = emptyList(),
+                    principalVariationUci = emptyList(),
+                    candidates = emptyList(),
+                    engineName = "Stockfish 19 · Offline"
+                )
+            }
+            val bestMove = parseMove(bestUci)
             val ordered = lines.values.toList().ifEmpty { listOf(EngineLine(1, 0, null, 0, listOf(bestMove.uci))) }
             val main = ordered.first()
             val mainMoves = main.pv.mapNotNull(::parseMoveOrNull)
@@ -97,6 +126,9 @@ private class StockfishProcessEngine(private val context: Context) : ChessEngine
 
     private fun ensureStarted() {
         if (process?.isAlive == true) return
+        runCatching { input?.close() }
+        runCatching { output?.close() }
+        runCatching { process?.destroy() }
         val binary = File(context.applicationInfo.nativeLibraryDir, "libstockfish.so")
         require(binary.exists()) { "Stockfish is unavailable for this device ABI" }
         process = ProcessBuilder(binary.absolutePath).redirectErrorStream(true).start()

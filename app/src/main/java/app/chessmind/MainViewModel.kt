@@ -31,9 +31,10 @@ import kotlin.random.Random
 import kotlin.math.roundToInt
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 
-enum class AppScreen { SPLASH, ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS }
+enum class AppScreen { SPLASH, ONBOARDING, HOME, PROFILE, SCANNER, IMAGE_REVIEW, SETUP, LEVEL, ANALYSIS, PLAY_SELECT, GAME, GAME_REVIEW, HISTORY, SETTINGS, PRACTICE }
 
 enum class GameMode { AI, FRIEND }
 
@@ -85,6 +86,7 @@ data class AppUiState(
     val aiDrawOffer: Boolean = false,
     val aiHasOfferedDraw: Boolean = false,
     val drawStatus: String? = null,
+    val pendingPromotion: Pair<Square, Square>? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -93,6 +95,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         PracticePuzzle("Mate in one", "Finish the exposed king", "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1", "f7g7", "The queen can deliver mate while protected by the king."),
         PracticePuzzle("Win the queen", "Find the knight fork", "4k3/8/8/3q4/8/2N5/8/4K3 w - - 0 1", "c3d5", "Look for a square that attacks both king and queen."),
         PracticePuzzle("Promote", "Create a new queen", "7k/P7/8/8/8/8/8/7K w - - 0 1", "a7a8q", "Push the pawn to the last rank."),
+        PracticePuzzle("Back rank mate", "Exploit the trapped king", "6k1/5ppp/8/8/8/8/4QPPP/6K1 w - - 0 1", "e2e8", "Look for an unguarded eighth rank."),
+        PracticePuzzle("Rook pin", "Pressure the pinned piece", "4k3/8/8/4r3/8/8/4R3/4K3 w - - 0 1", "e2e5", "Win the immobilized piece directly."),
+        PracticePuzzle("Smothered setup", "Reroute with decisive pressure", "6k1/5Npp/8/8/8/8/1Q6/6K1 w - - 0 1", "b2f2", "Coordinate your queen to create unstoppable threats."),
+        PracticePuzzle("Trade advantage", "Simplify to a won endgame", "4k3/8/8/8/8/8/4r3/4R1K1 w - - 0 1", "e1e2", "Capture the pinned rook with check."),
+        PracticePuzzle("Remove defender", "Target the vulnerable back rank", "3r2k1/5ppp/8/8/8/8/4RPPP/6K1 w - - 0 1", "e2e8", "The back rank defense is vulnerable to a decisive strike.")
     )
     var state by mutableStateOf(
         AppUiState(
@@ -246,8 +253,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val opponent = (playerRating + when (state.settings.aiStrength) {
             -1 -> -115
-            1 -> 45
-            else -> -45
+            1 -> 65
+            else -> 0
         } + Random.nextInt(-leagueJitter, leagueJitter + 1)).coerceIn(180, 2_400)
         val clockSeconds = state.selectedTimeMinutes * 60
         state = state.copy(
@@ -257,7 +264,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             reviewProgress = 0, reviewTotal = 0, gameRatingBefore = state.progress.rating, lastRatingChange = 0,
             whiteTimeSeconds = clockSeconds, blackTimeSeconds = clockSeconds,
             clockStarted = false, aiDrawOffer = false, aiHasOfferedDraw = false, drawStatus = null,
-            flipped = false,
+            flipped = false, pendingPromotion = null,
         )
     }
 
@@ -275,7 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun tapGame(square: Square) {
-        if (state.gameResult != null || state.aiThinking) return
+        if (state.gameResult != null || state.aiThinking || state.pendingPromotion != null) return
         if (state.gameMode == GameMode.AI && state.gamePosition.sideToMove == Side.BLACK) return
         val selected = state.gameSelected
         if (selected == null) {
@@ -287,18 +294,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dragGame(from: Square, to: Square) {
-        if (state.gameResult != null || state.aiThinking) return
+        if (state.gameResult != null || state.aiThinking || state.pendingPromotion != null) return
         if (state.gameMode == GameMode.AI && state.gamePosition.sideToMove == Side.BLACK) return
         attemptGameMove(from, to)
     }
 
     private fun attemptGameMove(from: Square, to: Square): Boolean {
+        val movingPiece = state.gamePosition[from]
+        val promoRank = if (state.gamePosition.sideToMove == Side.WHITE) 7 else 0
+        if (movingPiece?.type == PieceType.PAWN && to.rank == promoRank) {
+            val isLegalPromotion = ChessRules.legalMoves(state.gamePosition).any {
+                it.from == from && it.to == to && it.promotion != null
+            }
+            if (isLegalPromotion) {
+                state = state.copy(pendingPromotion = from to to, gameSelected = null)
+                return true
+            }
+        }
         val move = ChessRules.legalMoves(state.gamePosition).firstOrNull {
-            it.from == from && it.to == to && (it.promotion == null || it.promotion == PieceType.QUEEN)
+            it.from == from && it.to == to && it.promotion == null
         } ?: return false
         applyGameMove(move)
         if (state.gameMode == GameMode.AI && state.gameResult == null) state = state.copy(aiThinking = true)
         return true
+    }
+
+    fun applyPromotionMove(type: PieceType) {
+        val pending = state.pendingPromotion ?: return
+        val move = ChessRules.legalMoves(state.gamePosition).firstOrNull {
+            it.from == pending.first && it.to == pending.second && it.promotion == type
+        } ?: Move(pending.first, pending.second, type)
+        state = state.copy(pendingPromotion = null)
+        applyGameMove(move)
+        if (state.gameMode == GameMode.AI && state.gameResult == null) state = state.copy(aiThinking = true)
+    }
+
+    fun dismissPromotion() {
+        if (state.pendingPromotion != null) {
+            applyPromotionMove(PieceType.QUEEN)
+        }
     }
 
     suspend fun playAiMove() {
@@ -312,8 +346,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 state.aiRating < 1_800 -> AnalysisLevel.MASTER
                 else -> AnalysisLevel.GOD
             }
+            val timeoutMs = maxOf(3_500L, level.timeMs + 1_500L)
             val result = try {
-                withTimeoutOrNull(3_500) { engine.analyze(position, level) }
+                withTimeoutOrNull(timeoutMs) { engine.analyze(position, level) }
             } catch (cancelled: CancellationException) {
                 engine.stop()
                 throw cancelled
@@ -379,16 +414,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         else state = state.copy(aiDrawOffer = false, drawStatus = "You declined the AI's draw offer.")
     }
 
+    private var reviewJob: kotlinx.coroutines.Job? = null
+
     fun buildGameReview() {
         if (state.gameMoves.isEmpty()) return
-        viewModelScope.launch {
+        reviewJob?.cancel()
+        reviewJob = viewModelScope.launch {
             val moves = state.gameMoves
             val inspected = if (moves.size <= 24) moves.indices.toSet() else {
                 List(24) { step -> (step * (moves.lastIndex.toDouble() / 23.0)).toInt() }.toSet()
             }
             state = state.copy(screen = AppScreen.GAME_REVIEW, reviewLoading = true, gameReview = emptyList(), reviewProgress = 0, reviewTotal = moves.size)
             val reviews = mutableListOf<GameReviewItem>()
-            moves.forEachIndexed { index, record ->
+            for ((index, record) in moves.withIndex()) {
+                if (!isActive) break
                 val answer = if (index in inspected) withTimeoutOrNull(700) {
                     engine.analyze(record.before, AnalysisLevel.BEGINNER)
                 } else null
@@ -404,6 +443,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             state = state.copy(reviewLoading = false)
         }
+    }
+
+    fun stopGameReview() {
+        reviewJob?.cancel()
+        reviewJob = null
+        engine.stop()
+        state = state.copy(reviewLoading = false, screen = AppScreen.GAME)
     }
 
     private fun applyGameMove(move: Move) {
@@ -422,6 +468,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "${before.sideToMove.name.lowercase().replaceFirstChar { it.uppercase() }} wins by checkmate"
             } else "Draw by stalemate"
             finishGame(result)
+        } else if (after.halfmoveClock >= 100) {
+            finishGame("Draw by 50-move rule")
+        } else if (ChessRules.isInsufficientMaterial(after)) {
+            finishGame("Draw by insufficient material")
+        } else if (isThreefoldRepetition(after)) {
+            finishGame("Draw by repetition")
         } else if (
             state.gameMode == GameMode.AI && before.sideToMove == Side.BLACK && !state.aiHasOfferedDraw &&
             drawIsReasonable(after, state.gameMoves.size)
@@ -430,7 +482,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun isThreefoldRepetition(current: Position): Boolean {
+        val currentKey = repetitionKey(current)
+        var count = 1
+        for (record in state.gameMoves) {
+            if (repetitionKey(record.before) == currentKey) {
+                count++
+                if (count >= 3) return true
+            }
+        }
+        return false
+    }
+
+    private fun repetitionKey(pos: Position): String =
+        "${pos.board.map { it?.fen ?: '.' }.joinToString("")} ${pos.sideToMove} ${pos.castling.asFen()} ${pos.enPassant?.algebraic ?: "-"}"
+
     private fun drawIsReasonable(position: Position, plies: Int): Boolean {
+        if (ChessRules.isInsufficientMaterial(position)) return true
         val values = mapOf(PieceType.PAWN to 1, PieceType.KNIGHT to 3, PieceType.BISHOP to 3, PieceType.ROOK to 5, PieceType.QUEEN to 9, PieceType.KING to 0)
         val balance = kotlin.math.abs(position.board.sumOf { piece ->
             if (piece == null) 0 else (values[piece.type] ?: 0) * if (piece.side == Side.WHITE) 1 else -1
@@ -605,6 +673,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun currentPuzzle(): PracticePuzzle = puzzles[state.puzzleIndex]
     fun stopAnalysis() { engine.stop(); state = state.copy(screen = AppScreen.LEVEL, result = null) }
+
+    fun exportGamePgn(): String {
+        val moves = state.gameMoves.map { it.move }
+        val start = state.gameMoves.firstOrNull()?.before ?: Position.START
+        val event = if (state.gameMode == GameMode.AI) "ChessMind AI Match" else "ChessMind Friend Match"
+        val result = state.gameResult?.let {
+            when {
+                it.startsWith("White wins") -> "1-0"
+                it.startsWith("Black wins") || it.startsWith("AI wins") -> "0-1"
+                it.startsWith("Draw") -> "1/2-1/2"
+                else -> "*"
+            }
+        } ?: "*"
+        return Pgn.export(start, moves, event, result)
+    }
+
+    fun exportAnalysisPgn(): String {
+        val result = state.result ?: return Pgn.export(state.position, emptyList())
+        val moves = result.principalVariationUci.mapNotNull(::parseUciMove)
+        return Pgn.export(state.position, moves, "ChessMind Analysis")
+    }
+
+    fun copyPositionFen(): String = Fen.encode(state.position)
 
     fun piece(side: Side, type: PieceType) = Piece(type, side)
 

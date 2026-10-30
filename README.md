@@ -2,7 +2,7 @@
 
 ChessMind is a private, offline-first Android chess solver and trainer. Capture or import a board photo, build or correct the position, choose an analysis level, and get a best move with a readable explanation—without an account or server.
 
-> **Current version: 4.0.0.** The app now includes complete timed local matches against adaptive AI or a nearby friend, draw offers and agreements, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
+> **Current version: 1.0.0.** The app includes complete timed local matches against adaptive AI or a nearby friend, draw offers and agreements, persistent rating and league progression, two-sided post-game review, camera/gallery capture, manual positions, local analysis, animated line exploration, and history.
 
 ## What works
 

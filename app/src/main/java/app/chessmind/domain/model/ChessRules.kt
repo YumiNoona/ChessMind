@@ -54,15 +54,52 @@ object ChessRules {
             return if (move.to.file == 6) "O-O" else "O-O-O"
         }
         val capture = position[move.to] != null || (piece.type == PieceType.PAWN && move.to == position.enPassant)
+        val disambiguation = if (piece.type != PieceType.PAWN) {
+            val ambiguous = legalMoves(position).filter { other ->
+                other.from != move.from && other.to == move.to && position[other.from]?.type == piece.type
+            }
+            if (ambiguous.isEmpty()) {
+                ""
+            } else {
+                val sameFile = ambiguous.any { it.from.file == move.from.file }
+                val sameRank = ambiguous.any { it.from.rank == move.from.rank }
+                when {
+                    !sameFile -> move.from.algebraic[0].toString()
+                    !sameRank -> move.from.algebraic[1].toString()
+                    else -> move.from.algebraic
+                }
+            }
+        } else ""
         val prefix = if (piece.type == PieceType.PAWN) {
             if (capture) ('a'.code + move.from.file).toChar().toString() else ""
-        } else piece.type.fen.uppercaseChar().toString()
+        } else piece.type.fen.uppercaseChar().toString() + disambiguation
         val promoted = move.promotion?.let { "=${it.fen.uppercaseChar()}" } ?: ""
         val next = apply(position, move)
         val check = if (isInCheck(next, next.sideToMove)) {
             if (legalMoves(next).isEmpty()) "#" else "+"
         } else ""
         return prefix + (if (capture) "x" else "") + move.to.algebraic + promoted + check
+    }
+
+    fun isInsufficientMaterial(position: Position): Boolean {
+        val pieces = position.board.filterNotNull()
+        if (pieces.size == 2) return true // Only kings left
+        if (pieces.size == 3) {
+            return pieces.any { it.type in setOf(PieceType.BISHOP, PieceType.KNIGHT) }
+        }
+        if (pieces.size == 4) {
+            val whiteBishopSquare = position.board.indexOf(Piece(PieceType.BISHOP, Side.WHITE))
+            val blackBishopSquare = position.board.indexOf(Piece(PieceType.BISHOP, Side.BLACK))
+            if (whiteBishopSquare >= 0 && blackBishopSquare >= 0) {
+                val whiteColor = (whiteBishopSquare % 8 + whiteBishopSquare / 8) % 2
+                val blackColor = (blackBishopSquare % 8 + blackBishopSquare / 8) % 2
+                return whiteColor == blackColor
+            }
+            val whiteKnights = pieces.count { it == Piece(PieceType.KNIGHT, Side.WHITE) }
+            val blackKnights = pieces.count { it == Piece(PieceType.KNIGHT, Side.BLACK) }
+            if (whiteKnights == 1 && blackKnights == 1) return true
+        }
+        return false
     }
 
     private fun pseudoLegalMoves(position: Position): List<Move> = buildList {

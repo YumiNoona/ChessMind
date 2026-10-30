@@ -130,6 +130,15 @@ import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.Handshake
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkAdded
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -310,7 +319,7 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
                 AppScreen.PLAY_SELECT -> AppScreen.HOME
                 AppScreen.LEVEL -> AppScreen.SETUP
                 AppScreen.PROFILE, AppScreen.SCANNER, AppScreen.IMAGE_REVIEW, AppScreen.SETUP, AppScreen.HISTORY,
-                AppScreen.SETTINGS -> AppScreen.HOME
+                AppScreen.SETTINGS, AppScreen.PRACTICE -> AppScreen.HOME
                 else -> AppScreen.HOME
             }
         )
@@ -348,6 +357,7 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
                     AppScreen.GAME_REVIEW -> GameReviewScreen(vm)
                     AppScreen.HISTORY -> HistoryScreen(vm)
                     AppScreen.SETTINGS -> SettingsScreen(vm)
+                    AppScreen.PRACTICE -> PracticeScreen(vm)
                 }
             }
         }
@@ -474,6 +484,35 @@ private fun HomeScreen(vm: MainViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HomeActionCard("Play chess", "Friend or AI", leagueFor(vm.state.progress.rating).art, Color(0xFFFF8D78), Modifier.weight(1f), artSize = 172.dp) { vm.navigate(AppScreen.PLAY_SELECT) }
                 HomeActionCard("Set position", "Build it yourself", R.drawable.art_setup_position_v2, Color(0xFFA78BFA), Modifier.weight(1f), artSize = 224.dp, artOffsetX = 12.dp, artOffsetY = (-38).dp) { vm.navigate(AppScreen.SETUP) }
+            }
+        }
+        item {
+            Card(
+                onClick = { vm.navigate(AppScreen.PRACTICE) },
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF69D3AE).copy(if (vm.state.settings.darkMode) .2f else .25f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF69D3AE)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(painterResource(R.drawable.art_practice), null, contentScale = ContentScale.Fit, modifier = Modifier.size(58.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Daily training", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                            Spacer(Modifier.width(8.dp))
+                            Surface(shape = RoundedCornerShape(8.dp), color = Sunny) {
+                                Text("🔥 ${vm.state.practiceStats.streak}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LightInk, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        }
+                        Text("Solve tactical puzzles & sharpen your board vision", style = MaterialTheme.typography.bodyMedium, color = Muted, modifier = Modifier.padding(top = 2.dp))
+                    }
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Accent)
+                }
             }
         }
         if (vm.state.history.isNotEmpty() || vm.state.matchHistory.isNotEmpty()) item {
@@ -633,6 +672,7 @@ private fun PlayModeCard(title: String, art: Int, color: Color, icon: androidx.c
 @Composable
 private fun GameScreen(vm: MainViewModel) {
     val state = vm.state
+    val context = LocalContext.current
     var showResignConfirmation by remember { mutableStateOf(false) }
     val position = state.gamePosition
     val legal = ChessRules.legalMoves(position)
@@ -651,7 +691,30 @@ private fun GameScreen(vm: MainViewModel) {
         modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { ScreenHeader(if (state.gameMode == GameMode.AI) "Vs adaptive AI" else "Friend match", onBack = { vm.navigate(AppScreen.PLAY_SELECT) }, trailing = if (state.gameMode == GameMode.AI) "${state.aiRating}" else "LOCAL") }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { vm.navigate(AppScreen.PLAY_SELECT) }) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                }
+                Text(
+                    if (state.gameMode == GameMode.AI) "Vs adaptive AI" else "Friend match",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = vm::flip) {
+                        Icon(Icons.Rounded.FlipCameraAndroid, contentDescription = "Flip board")
+                    }
+                    Text(
+                        if (state.gameMode == GameMode.AI) "${state.aiRating}" else "LOCAL",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Muted
+                    )
+                }
+            }
+        }
         item {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val league = leagueFor(if (state.gameMode == GameMode.AI) state.aiRating else state.progress.rating)
@@ -743,11 +806,69 @@ private fun GameScreen(vm: MainViewModel) {
                     Text("Review ideas for White and Black", fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
                 }
             }
-            Button(onClick = vm::buildGameReview, modifier = Modifier.fillMaxWidth().height(58.dp), shape = RoundedCornerShape(19.dp)) {
-                Icon(Icons.Rounded.Psychology, null); Spacer(Modifier.width(7.dp)); Text("Analyze both sides")
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = vm::buildGameReview,
+                    modifier = Modifier.weight(1.3f).height(54.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Icon(Icons.Rounded.Psychology, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text("Review match")
+                }
+                FilledIconButton(
+                    onClick = {
+                        val pgn = vm.exportGamePgn()
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, pgn)
+                            putExtra(Intent.EXTRA_SUBJECT, "ChessMind match PGN")
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share match PGN"))
+                    },
+                    modifier = Modifier.weight(0.7f).height(54.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Share, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("PGN", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
             }
         }
         item { Spacer(Modifier.height(20.dp)) }
+    }
+    state.pendingPromotion?.let { pending ->
+        AlertDialog(
+            onDismissRequest = vm::dismissPromotion,
+            title = { Text("Pawn promotion", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Choose a piece for your promoted pawn:", color = Muted, fontSize = 13.sp)
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        listOf(PieceType.QUEEN, PieceType.KNIGHT, PieceType.ROOK, PieceType.BISHOP).forEach { type ->
+                            Surface(
+                                onClick = { vm.applyPromotionMove(type) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = SurfaceDark,
+                                border = BorderStroke(1.5.dp, Accent.copy(.4f)),
+                                modifier = Modifier.size(64.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    ChessPiece(Piece(type, position.sideToMove), depth = true, modifier = Modifier.size(46.dp), style = state.settings.pieceStyle)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = vm::dismissPromotion) { Text("Queen") } }
+        )
     }
     if (showResignConfirmation) AlertDialog(
         onDismissRequest = { showResignConfirmation = false },
@@ -784,17 +905,31 @@ private fun ClockPill(label: String, seconds: Int, active: Boolean) {
 @Composable
 private fun GameReviewScreen(vm: MainViewModel) {
     val state = vm.state
+    val context = LocalContext.current
     var index by remember(state.gameReview.size) { mutableStateOf(0) }
     if (state.reviewLoading) {
-        ReviewLoadingScreen(state.reviewProgress, state.reviewTotal) { vm.navigate(AppScreen.GAME) }
+        ReviewLoadingScreen(state.reviewProgress, state.reviewTotal) { vm.stopGameReview() }
         return
     }
     val review = state.gameReview.getOrNull(index)
     LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeader("Game review", onBack = { vm.navigate(AppScreen.GAME) }, trailing = "BOTH SIDES") }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { vm.stopGameReview() }) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                }
+                Text("Game review", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = vm::flip) {
+                        Icon(Icons.Rounded.FlipCameraAndroid, contentDescription = "Flip board")
+                    }
+                    Text("BOTH SIDES", fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Muted)
+                }
+            }
+        }
         item {
             ChessBoard(
-                review?.position ?: state.gamePosition, false, null, {}, {},
+                review?.position ?: state.gamePosition, state.flipped, null, {}, {},
                 showCoordinates = state.settings.coordinates,
                 lastMove = if (state.settings.showLastMove) state.gameMoves.getOrNull(index)?.move?.let { it.from to it.to } else null,
                 highContrastBoard = state.settings.highContrastBoard, boardDepth = state.settings.boardDepth,
@@ -821,6 +956,28 @@ private fun GameReviewScreen(vm: MainViewModel) {
                 }
             }
         } }
+        item {
+            FilledIconButton(
+                onClick = {
+                    val pgn = vm.exportGamePgn()
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, pgn)
+                        putExtra(Intent.EXTRA_SUBJECT, "ChessMind match PGN")
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "Share match PGN"))
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Share, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Share full match PGN", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
         item { Spacer(Modifier.height(18.dp)) }
     }
 }
@@ -1071,7 +1228,12 @@ private fun ImageReviewScreen(vm: MainViewModel) {
 @Composable
 private fun SetupScreen(vm: MainViewModel) {
     val state = vm.state
+    val clipboard = LocalClipboardManager.current
     var showDetails by remember { mutableStateOf(false) }
+    var showFenDialog by remember { mutableStateOf(false) }
+    var showPgnDialog by remember { mutableStateOf(false) }
+    var copiedNotice by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding()) {
         ScreenHeader("Set up position", onBack = { vm.navigate(AppScreen.HOME) })
         state.fenError?.let { message ->
@@ -1102,9 +1264,11 @@ private fun SetupScreen(vm: MainViewModel) {
             dragToMove = state.settings.dragToMove,
             onDragMove = vm::dragSetupPiece,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
+        PiecePalette(state.palettePiece, vm::setPalette)
+        Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = vm::toggleTurn) { Text(if (state.position.sideToMove == Side.WHITE) "White to move" else "Black to move", color = Accent) }
+            TextButton(onClick = vm::toggleTurn) { Text(if (state.position.sideToMove == Side.WHITE) "White to move" else "Black to move", color = Accent, fontWeight = FontWeight.Bold) }
             Row {
                 IconButton(onClick = vm::flip) { Icon(Icons.Rounded.FlipCameraAndroid, contentDescription = "Flip board") }
                 IconButton(onClick = vm::clear) { Icon(Icons.Rounded.DeleteSweep, contentDescription = "Clear board") }
@@ -1115,6 +1279,38 @@ private fun SetupScreen(vm: MainViewModel) {
             TextButton(onClick = vm::undo, enabled = state.canUndo) { Icon(Icons.AutoMirrored.Rounded.Undo, null); Spacer(Modifier.width(5.dp)); Text("Undo") }
             TextButton(onClick = vm::redo, enabled = state.canRedo) { Icon(Icons.AutoMirrored.Rounded.Redo, null); Spacer(Modifier.width(5.dp)); Text("Redo") }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledIconButton(onClick = { showFenDialog = true }, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(12.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("FEN", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            FilledIconButton(onClick = { showPgnDialog = true }, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(12.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.History, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("PGN", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            FilledIconButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString(Fen.encode(state.position)))
+                    copiedNotice = true
+                },
+                modifier = Modifier.weight(1.2f).height(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = if (copiedNotice) Color(0xFF69D3AE).copy(.3f) else SurfaceDark, contentColor = Ink)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (copiedNotice) "Copied!" else "Copy FEN", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
         TextButton(onClick = { showDetails = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Castling ${state.position.castling.asFen()}  ·  En passant ${state.position.enPassant?.algebraic ?: "-"}", color = Muted, fontSize = 12.sp)
         }
@@ -1134,34 +1330,46 @@ private fun SetupScreen(vm: MainViewModel) {
         onDismiss = { showDetails = false; vm.dismissFenError() },
         onSaveEnPassant = { if (vm.setEnPassant(it)) showDetails = false },
     )
+    if (showFenDialog) FenDialog(
+        error = state.fenError,
+        initialFen = Fen.encode(state.position),
+        onDismiss = { showFenDialog = false; vm.dismissFenError() },
+        onLoad = { if (vm.loadFen(it)) showFenDialog = false },
+    )
+    if (showPgnDialog) PgnDialog(
+        error = state.fenError,
+        onDismiss = { showPgnDialog = false; vm.dismissFenError() },
+        onLoad = { if (vm.loadPgn(it)) showPgnDialog = false },
+    )
 }
 
 @Composable
 private fun PiecePalette(selected: Piece?, onSelect: (Piece?) -> Unit) {
     Column {
-        Text("PIECES", fontSize = 11.sp, letterSpacing = 1.4.sp, color = Muted)
+        Text("PIECE PALETTE", fontSize = 10.sp, letterSpacing = 1.4.sp, color = Muted, fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             item {
-                PaletteCell(null, selected == null) { onSelect(null) }
+                PaletteCell(null, selected == null, isMove = true) { onSelect(null) }
             }
             items(Side.entries.flatMap { side -> PieceType.entries.map { Piece(it, side) } }) { piece ->
-                PaletteCell(piece, selected == piece) { onSelect(piece) }
+                PaletteCell(piece, selected == piece, isMove = false) { onSelect(piece) }
             }
         }
     }
 }
 
 @Composable
-private fun PaletteCell(piece: Piece?, active: Boolean, onClick: () -> Unit) {
+private fun PaletteCell(piece: Piece?, active: Boolean, isMove: Boolean = false, onClick: () -> Unit) {
     Box(
         Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
-            .background(if (active) Accent else SurfaceLight)
+            .background(if (active) Accent else SurfaceDark)
+            .border(if (active) 2.dp else 1.dp, if (active) Color.White.copy(.8f) else Color.White.copy(.1f), RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (piece == null) Text("↕", fontSize = 25.sp, color = if (active) Color.White else Ink)
-        else ChessPiece(piece, depth = true, Modifier.size(38.dp).padding(3.dp))
+        if (isMove || piece == null) Icon(Icons.Rounded.TouchApp, contentDescription = "Move mode", tint = if (active) Color.White else Ink, modifier = Modifier.size(22.dp))
+        else ChessPiece(piece, depth = true, Modifier.size(36.dp).padding(2.dp))
     }
 }
 
@@ -1206,7 +1414,11 @@ private fun ChessBoard(
             return Square.of(file, rank)
         }
         detectDragGestures(
-            onDragStart = { point -> dragFrom = squareAt(point); dragTo = dragFrom },
+            onDragStart = { point ->
+                dragFrom = squareAt(point)
+                dragTo = dragFrom
+                dragFrom?.let { onTap(it) }
+            },
             onDragEnd = {
                 val from = dragFrom
                 val to = dragTo
@@ -1337,9 +1549,10 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
                 Text("BOARD", color = Muted, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(55.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 listOf(BoardLight to BoardDark, Color(0xFFEEEED2) to Color(0xFF769656), Color(0xFFD8E8F4) to Color(0xFF4D7EA8), Color(0xFFE6E6E6) to Color(0xFF5D6470)).forEachIndexed { index, colors ->
+                    val isSelected = settings.boardTheme == index
                     Box(
                         Modifier.weight(1f).height(32.dp).clip(RoundedCornerShape(9.dp))
-                            .border(if (settings.boardTheme == index) 2.dp else 0.dp, Accent, RoundedCornerShape(10.dp))
+                            .then(if (isSelected) Modifier.border(2.dp, Accent, RoundedCornerShape(10.dp)) else Modifier)
                             .clickable { onUpdate(settings.copy(boardTheme = index)) },
                     ) {
                         Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(colors.first, colors.first, colors.second, colors.second))))
@@ -1353,10 +1566,11 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
                 Text("PIECES", color = Muted, fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(55.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 repeat(5) { index ->
+                    val isSelected = settings.pieceStyle == index
                     Box(
                         Modifier.weight(1f).height(39.dp).clip(RoundedCornerShape(11.dp))
-                            .background(if (settings.pieceStyle == index) Accent.copy(.14f) else Color.Transparent)
-                            .border(if (settings.pieceStyle == index) 1.5.dp else 0.dp, Accent, RoundedCornerShape(11.dp))
+                            .background(if (isSelected) Accent.copy(.14f) else Color.Transparent)
+                            .then(if (isSelected) Modifier.border(1.5.dp, Accent, RoundedCornerShape(11.dp)) else Modifier)
                             .clickable { onUpdate(settings.copy(pieceStyle = index)) },
                         contentAlignment = Alignment.Center,
                     ) { ChessPiece(Piece(PieceType.KNIGHT, if (index % 2 == 0) Side.WHITE else Side.BLACK), false, Modifier.size(34.dp), index) }
@@ -1368,41 +1582,67 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
 }
 
 @Composable
-private fun FenDialog(error: String?, onDismiss: () -> Unit, onLoad: (String) -> Unit) {
-    var text by remember { mutableStateOf(Fen.encode(Position.START)) }
+private fun FenDialog(error: String?, initialFen: String, onDismiss: () -> Unit, onLoad: (String) -> Unit) {
+    var text by remember(initialFen) { mutableStateOf(initialFen) }
+    val clipboard = LocalClipboardManager.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Load FEN") },
+        title = { Text("Load FEN", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Position") },
+                    label = { Text("FEN string") },
                     minLines = 3,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    TextButton(onClick = { clipboard.getText()?.text?.let { text = it.trim() } }) {
+                        Icon(Icons.Rounded.ContentPaste, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Paste", fontSize = 12.sp)
+                    }
+                    TextButton(onClick = { text = Fen.encode(Position.START) }) {
+                        Text("Default", fontSize = 12.sp)
+                    }
+                }
+                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { onLoad(text) }) { Text("Load") } },
+        confirmButton = { TextButton(onClick = { onLoad(text) }) { Text("Load", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
 @Composable
 private fun PgnDialog(error: String?, onDismiss: () -> Unit, onLoad: (String) -> Unit) {
-    var text by remember { mutableStateOf("[Event \"Imported game\"]\n\n1. e4 e5 2. Nf3 Nc6 *") }
+    var text by remember { mutableStateOf("[Event \"Game\"]\n\n1. e4 e5 2. Nf3 Nc6 *") }
+    val clipboard = LocalClipboardManager.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Load PGN") },
+        title = { Text("Load PGN", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Game notation") }, minLines = 7)
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Game notation") },
+                    minLines = 6,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Start) {
+                    TextButton(onClick = { clipboard.getText()?.text?.let { text = it.trim() } }) {
+                        Icon(Icons.Rounded.ContentPaste, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Paste from clipboard", fontSize = 12.sp)
+                    }
+                }
+                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { onLoad(text) }) { Text("Load final position") } },
+        confirmButton = { TextButton(onClick = { onLoad(text) }) { Text("Load final position", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
@@ -1419,23 +1659,38 @@ private fun PositionDetailsDialog(
     var ep by remember(enPassant) { mutableStateOf(enPassant) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Position details") },
+        title = { Text("Position details", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text("Castling rights", color = Muted, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf('K', 'Q', 'k', 'q').forEach { symbol ->
                         val active = symbol in castling
-                        TextButton(onClick = { onToggle(symbol) }, modifier = Modifier.weight(1f)) {
-                            Text(symbol.toString(), color = if (active) Sunny else Muted, fontWeight = FontWeight.Bold)
+                        Surface(
+                            onClick = { onToggle(symbol) },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (active) Accent else SurfaceDark,
+                            border = BorderStroke(1.dp, if (active) Accent else Color.White.copy(.12f)),
+                        ) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    symbol.toString(),
+                                    color = if (active) Color.White else Ink,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
                     }
                 }
-                OutlinedTextField(value = ep, onValueChange = { ep = it }, label = { Text("En-passant square or -") })
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(value = ep, onValueChange = { ep = it }, label = { Text("En-passant square or -") }, modifier = Modifier.fillMaxWidth())
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { onSaveEnPassant(ep) }) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { onSaveEnPassant(ep) }) { Text("Save", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
@@ -1581,6 +1836,10 @@ private fun AnalysisScreen(vm: MainViewModel) {
                         if (exploredPositions.size > 1) {
                             exploredPositions = exploredPositions.dropLast(1)
                             if (followingLine && pvIndex > 0) pvIndex--
+                            if (exploredPositions.size == 1) {
+                                followingLine = true
+                                pvIndex = 0
+                            }
                             selected = null
                         }
                     }, enabled = exploredPositions.size > 1) { Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous move") }
@@ -1640,12 +1899,85 @@ private fun AnalysisScreen(vm: MainViewModel) {
             GlassCard {
                 Text("CANDIDATES", style = MaterialTheme.typography.labelMedium, color = Muted)
                 result.candidates.forEachIndexed { index, candidate ->
-                    Row(Modifier.fillMaxWidth().padding(top = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                val move = ChessRules.legalMoves(state.position).firstOrNull {
+                                    ChessRules.notation(state.position, it) == candidate.move || it.uci == candidate.move
+                                }
+                                if (move != null) {
+                                    exploredPositions = listOf(state.position, ChessRules.apply(state.position, move))
+                                    followingLine = false
+                                    selected = null
+                                }
+                            }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("${index + 1}", color = Muted, modifier = Modifier.width(24.dp))
                         Text(candidate.move, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         Text(candidate.label, color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.width(10.dp))
-                        Text(candidate.evaluation, color = Accent)
+                        Text(candidate.evaluation, color = Accent, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        item {
+            var savedNotice by remember { mutableStateOf(false) }
+            val clipboard = LocalClipboardManager.current
+            val context = LocalContext.current
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        vm.saveCurrent()
+                        savedNotice = true
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (savedNotice) Color(0xFF69D3AE) else Accent,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(if (savedNotice) Icons.Rounded.BookmarkAdded else Icons.Rounded.Bookmark, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (savedNotice) "Saved to library ✓" else "Save idea to library", fontWeight = FontWeight.Bold)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledIconButton(
+                        onClick = {
+                            val pgn = vm.exportAnalysisPgn()
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, pgn)
+                                putExtra(Intent.EXTRA_SUBJECT, "ChessMind analysis PGN")
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Share analysis PGN"))
+                        },
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Share, null, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Share PGN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                    FilledIconButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(vm.copyPositionFen()))
+                        },
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = SurfaceDark, contentColor = Ink)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Copy FEN", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -1717,18 +2049,20 @@ private fun PracticeScreen(vm: MainViewModel) {
     val state = vm.state
     val puzzle = vm.currentPuzzle()
     LazyColumn(
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 112.dp),
+        modifier = Modifier.navigationBarsPadding(),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        item { ScreenHeader("Daily training", onBack = { vm.navigate(AppScreen.HOME) }) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("DAILY TRAINING", color = Accent, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
-                    Text(puzzle.title, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("DAILY TACTICS", color = Accent, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                    Text(puzzle.title, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                     Text(puzzle.subtitle, color = Muted, fontSize = 13.sp)
                 }
                 Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Sunny).padding(horizontal = 13.dp, vertical = 10.dp)) {
-                    Text("🔥 ${state.practiceStats.streak}", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("🔥 ${state.practiceStats.streak}", color = LightInk, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1775,49 +2109,9 @@ private fun PracticeScreen(vm: MainViewModel) {
 
 @Composable
 private fun StatPill(label: String, value: String, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(18.dp)).background(Color.White.copy(.08f)).padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Sunny)
+    Column(modifier.clip(RoundedCornerShape(18.dp)).background(SurfaceDark).padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Accent)
         Text(label, fontSize = 9.sp, color = Muted, letterSpacing = .6.sp)
-    }
-}
-
-@Composable
-private fun SavedScreen(vm: MainViewModel) {
-    val positions = vm.state.savedPositions
-    LazyColumn(
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 112.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Text("SAVED LIBRARY", color = Accent, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
-            Text("Your positions", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
-            Text("${positions.size} stored locally", color = Muted, fontSize = 13.sp)
-        }
-        if (positions.isEmpty()) item {
-            GlassCard {
-                Text("◇", fontSize = 44.sp, color = Purple)
-                Text("Nothing saved yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                Text("Save a position from an analysis result and it will appear here.", color = Muted, lineHeight = 19.sp)
-            }
-        }
-        items(positions, key = { it.id }) { item ->
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(SurfaceDark)
-                    .border(1.dp, Color.White.copy(.08f), RoundedCornerShape(22.dp)).clickable { vm.openSaved(item) }.padding(15.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Purple, Color(0xFF5B43B5)))), contentAlignment = Alignment.Center) {
-                    Text("♞", fontSize = 35.sp, color = Color.White)
-                }
-                Spacer(Modifier.width(13.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.name, fontWeight = FontWeight.Bold)
-                    Text("${item.bestMove}  •  ${item.evaluation}", color = Sunny, fontSize = 13.sp)
-                    Text(item.fen.take(28) + "…", color = Muted, fontSize = 10.sp, maxLines = 1)
-                }
-                TextButton(onClick = { vm.deleteSaved(item.id) }) { Text("×", color = Coral, fontSize = 22.sp) }
-            }
-        }
     }
 }
 
@@ -1825,72 +2119,147 @@ private fun SavedScreen(vm: MainViewModel) {
 private fun HistoryScreen(vm: MainViewModel) {
     val analyses = vm.state.history
     val matches = vm.state.matchHistory
-    LazyColumn(modifier = Modifier.navigationBarsPadding(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        item { ScreenHeader("History", onBack = { vm.navigate(AppScreen.HOME) }, trailing = "${matches.size + analyses.size} LOCAL") }
-        if (matches.isEmpty() && analyses.isEmpty()) item {
-            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(painterResource(R.drawable.art_empty_history), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(210.dp))
-                    Text("Every game tells a story", style = MaterialTheme.typography.titleMedium)
-                    Text("AI matches, friend games, and completed analyses will appear here.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
-                }
-            }
+    val saved = vm.state.savedPositions
+    var selectedTab by remember { mutableStateOf(0) }
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier.navigationBarsPadding(),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        item {
+            ScreenHeader(
+                "History & library",
+                onBack = { vm.navigate(AppScreen.HOME) },
+                trailing = "${matches.size + analyses.size + saved.size} TOTAL",
+            )
         }
-        if (matches.isNotEmpty()) item {
-            Text("MATCHES", style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
-        }
-        items(matches, key = { it.id }) { item ->
-            val isAi = item.mode == GameMode.AI.name
-            val league = leagueFor(item.opponentRating ?: item.ratingBefore)
-            Card(shape = RoundedCornerShape(23.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(68.dp).clip(RoundedCornerShape(19.dp)).background(if (isAi) league.color.copy(.22f) else Color(0xFF69D3AE).copy(.25f)),
-                        contentAlignment = Alignment.Center,
+        item {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceDark).padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                listOf(
+                    0 to "Matches (${matches.size})",
+                    1 to "Analyses (${analyses.size})",
+                    2 to "Saved (${saved.size})",
+                ).forEach { (tabIndex, title) ->
+                    val active = selectedTab == tabIndex
+                    Surface(
+                        onClick = { selectedTab = tabIndex },
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (active) Accent else Color.Transparent,
+                        contentColor = if (active) Color.White else Ink,
                     ) {
-                        Image(painterResource(if (isAi) league.art else R.drawable.art_practice), null, contentScale = ContentScale.Fit, modifier = Modifier.size(78.dp))
-                    }
-                    Spacer(Modifier.width(13.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(item.result, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2)
-                        Text(
-                            if (isAi) "AI · ${league.name} · ${item.opponentRating} pts" else "Local friend match",
-                            color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp),
-                        )
-                        Text(
-                            "${if (item.timeMinutes == 0) "Unlimited" else "${item.timeMinutes} min"} · ${item.moves} moves · ${formatHistoryDate(item.createdAt)}",
-                            color = Muted.copy(.78f), fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
-                    if (isAi) {
-                        Surface(shape = RoundedCornerShape(12.dp), color = if (item.ratingChange >= 0) Color(0xFF69D3AE).copy(.25f) else Coral.copy(.16f)) {
-                            Text(
-                                if (item.ratingChange >= 0) "+${item.ratingChange}" else "${item.ratingChange}",
-                                color = if (item.ratingChange >= 0) Color(0xFF176B52) else Coral,
-                                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
-                            )
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(title, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
                         }
                     }
                 }
             }
         }
-        if (analyses.isNotEmpty()) item {
-            Text("POSITION ANALYSES", style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
-        }
-        items(analyses, key = { it.id }) { item ->
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark)
-                    .clickable { vm.openHistory(item) }.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Image(painterResource(R.drawable.art_history), null, contentScale = ContentScale.Crop, modifier = Modifier.size(58.dp))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.bestMove, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text(item.level, color = Muted, fontSize = 12.sp)
-                    Text(item.fen.take(34) + "…", color = Muted.copy(.72f), fontSize = 9.sp, maxLines = 1)
+        when (selectedTab) {
+            0 -> {
+                if (matches.isEmpty()) item {
+                    Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
+                        Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(painterResource(R.drawable.art_empty_history), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(210.dp))
+                            Text("No match history yet", style = MaterialTheme.typography.titleMedium)
+                            Text("Completed games against AI or friends will appear here.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
+                        }
+                    }
                 }
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Accent)
+                items(matches, key = { it.id }) { item ->
+                    val isAi = item.mode == GameMode.AI.name
+                    val league = leagueFor(item.opponentRating ?: item.ratingBefore)
+                    Card(shape = RoundedCornerShape(23.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(68.dp).clip(RoundedCornerShape(19.dp)).background(if (isAi) league.color.copy(.22f) else Color(0xFF69D3AE).copy(.25f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Image(painterResource(if (isAi) league.art else R.drawable.art_practice), null, contentScale = ContentScale.Fit, modifier = Modifier.size(78.dp))
+                            }
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(item.result, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2)
+                                Text(
+                                    if (isAi) "AI · ${league.name} · ${item.opponentRating} pts" else "Local friend match",
+                                    color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp),
+                                )
+                                Text(
+                                    "${if (item.timeMinutes == 0) "Unlimited" else "${item.timeMinutes} min"} · ${item.moves} moves · ${formatHistoryDate(item.createdAt)}",
+                                    color = Muted.copy(.78f), fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                            if (isAi) {
+                                Surface(shape = RoundedCornerShape(12.dp), color = if (item.ratingChange >= 0) Color(0xFF69D3AE).copy(.25f) else Coral.copy(.16f)) {
+                                    Text(
+                                        if (item.ratingChange >= 0) "+${item.ratingChange}" else "${item.ratingChange}",
+                                        color = if (item.ratingChange >= 0) Color(0xFF176B52) else Coral,
+                                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            1 -> {
+                if (analyses.isEmpty()) item {
+                    Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
+                        Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(painterResource(R.drawable.art_empty_history), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(210.dp))
+                            Text("No position analyses yet", style = MaterialTheme.typography.titleMedium)
+                            Text("Scan a board or set up a position to analyze with the engine.", color = Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 5.dp))
+                        }
+                    }
+                }
+                items(analyses, key = { it.id }) { item ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceDark)
+                            .clickable { vm.openHistory(item) }.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Image(painterResource(R.drawable.art_history), null, contentScale = ContentScale.Crop, modifier = Modifier.size(58.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(item.bestMove, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text(item.level, color = Muted, fontSize = 12.sp)
+                            Text(item.fen.take(34) + "…", color = Muted.copy(.72f), fontSize = 9.sp, maxLines = 1)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Accent)
+                    }
+                }
+            }
+            2 -> {
+                if (saved.isEmpty()) item {
+                    GlassCard {
+                        Text("◇", fontSize = 44.sp, color = Purple)
+                        Text("Nothing saved yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                        Text("Save an idea from an engine analysis screen to store it here permanently.", color = Muted, lineHeight = 19.sp)
+                    }
+                }
+                items(saved, key = { it.id }) { item ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(SurfaceDark)
+                            .border(1.dp, Color.White.copy(.08f), RoundedCornerShape(22.dp)).clickable { vm.openSaved(item) }.padding(15.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Purple, Color(0xFF5B43B5)))), contentAlignment = Alignment.Center) {
+                            Text("♞", fontSize = 34.sp, color = Color.White)
+                        }
+                        Spacer(Modifier.width(13.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(item.name, fontWeight = FontWeight.Bold)
+                            Text("${item.bestMove}  •  ${item.evaluation}", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(item.fen.take(28) + "…", color = Muted, fontSize = 10.sp, maxLines = 1)
+                        }
+                        TextButton(onClick = { vm.deleteSaved(item.id) }) { Text("×", color = Coral, fontSize = 22.sp) }
+                    }
+                }
             }
         }
     }
