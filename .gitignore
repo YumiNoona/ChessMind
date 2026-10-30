@@ -34,6 +34,10 @@ keystore.properties
 hs_err_pid*
 replay_pid*
 
+# Node
+node_modules/
+package-lock.json
+
 # Operating systems
 .DS_Store
 Thumbs.db

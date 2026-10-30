@@ -7,6 +7,11 @@ to Android PNG resources by `scripts/render_piece_sets.mjs`.
 
 | Piece set | Author / source | License |
 | --- | --- | --- |
+| cburnett | Colin M.L. Burnett | CC BY-SA 3.0 / GPL |
+| california | Lichess / USCF | CC BY-SA 3.0 |
+| merida | Armando H. Marroquin | CC BY-SA 3.0 |
+| staunty | Jean-Luc W | CC BY-SA 3.0 |
+| cardinal | Jeremy Peters | CC BY-SA 3.0 |
 | rhosgfx | RhosGFX | CC0 1.0 Universal |
 | fantasy | Tommy Ettinger | MIT |
 | spatial | Tommy Ettinger | MIT |
@@ -15,6 +20,12 @@ to Android PNG resources by `scripts/render_piece_sets.mjs`.
 
 The upstream attribution and licensing index is available in
 [Lichess COPYING.md](https://github.com/lichess-org/lila/blob/master/COPYING.md).
+
+## Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+
+The `cburnett`, `california`, `merida`, `staunty`, and `cardinal` piece sets are licensed
+under the Creative Commons Attribution-ShareAlike 3.0 Unported license.
+Full license text: https://creativecommons.org/licenses/by-sa/3.0/
 
 ## CC0 1.0 Universal
 

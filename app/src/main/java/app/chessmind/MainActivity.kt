@@ -22,8 +22,12 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
@@ -264,30 +268,57 @@ private fun ChessMindRoot(vm: MainViewModel = viewModel()) {
 
 @Composable
 private fun ChessMindTheme(darkMode: Boolean, content: @Composable () -> Unit) {
+    val targetColors = if (darkMode) darkColorScheme(
+        primary = Color(0xFF82A8FF),
+        background = NightBackground,
+        surface = NightSurface,
+        surfaceVariant = NightSurfaceHigh,
+        onPrimary = NightBackground,
+        secondary = Coral,
+        tertiary = Sunny,
+        onBackground = Color(0xFFF2F7FF),
+        onSurface = Color(0xFFF2F7FF),
+        onSurfaceVariant = Color(0xFFAFC1D6),
+    ) else lightColorScheme(
+        primary = BrandBlue,
+        background = SkyBackground,
+        surface = Color(0xFFF8FBFF),
+        onPrimary = Color.White,
+        secondary = Coral,
+        tertiary = Sunny,
+        surfaceVariant = Color.White,
+        onBackground = LightInk,
+        onSurface = LightInk,
+        onSurfaceVariant = Color(0xFF6F87A3),
+    )
+
+    val colorSpec = tween<Color>(durationMillis = 400, easing = FastOutSlowInEasing)
+    val primary by animateColorAsState(targetColors.primary, colorSpec, label = "primary")
+    val background by animateColorAsState(targetColors.background, colorSpec, label = "background")
+    val surface by animateColorAsState(targetColors.surface, colorSpec, label = "surface")
+    val surfaceVariant by animateColorAsState(targetColors.surfaceVariant, colorSpec, label = "surfaceVariant")
+    val onPrimary by animateColorAsState(targetColors.onPrimary, colorSpec, label = "onPrimary")
+    val secondary by animateColorAsState(targetColors.secondary, colorSpec, label = "secondary")
+    val tertiary by animateColorAsState(targetColors.tertiary, colorSpec, label = "tertiary")
+    val onBackground by animateColorAsState(targetColors.onBackground, colorSpec, label = "onBackground")
+    val onSurface by animateColorAsState(targetColors.onSurface, colorSpec, label = "onSurface")
+    val onSurfaceVariant by animateColorAsState(targetColors.onSurfaceVariant, colorSpec, label = "onSurfaceVariant")
+
+    val animatedColorScheme = targetColors.copy(
+        primary = primary,
+        background = background,
+        surface = surface,
+        surfaceVariant = surfaceVariant,
+        onPrimary = onPrimary,
+        secondary = secondary,
+        tertiary = tertiary,
+        onBackground = onBackground,
+        onSurface = onSurface,
+        onSurfaceVariant = onSurfaceVariant,
+    )
+
     MaterialTheme(
-        colorScheme = if (darkMode) darkColorScheme(
-            primary = Color(0xFF82A8FF),
-            background = NightBackground,
-            surface = NightSurface,
-            surfaceVariant = NightSurfaceHigh,
-            onPrimary = NightBackground,
-            secondary = Coral,
-            tertiary = Sunny,
-            onBackground = Color(0xFFF2F7FF),
-            onSurface = Color(0xFFF2F7FF),
-            onSurfaceVariant = Color(0xFFAFC1D6),
-        ) else lightColorScheme(
-            primary = BrandBlue,
-            background = SkyBackground,
-            surface = Color(0xFFF8FBFF),
-            onPrimary = Color.White,
-            secondary = Coral,
-            tertiary = Sunny,
-            surfaceVariant = Color.White,
-            onBackground = LightInk,
-            onSurface = LightInk,
-            onSurfaceVariant = Color(0xFF6F87A3),
-        ),
+        colorScheme = animatedColorScheme,
         typography = androidx.compose.material3.Typography(
             displaySmall = TextStyle(fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold, fontSize = 40.sp, lineHeight = 43.sp),
             headlineLarge = TextStyle(fontFamily = SpaceGrotesk, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 36.sp),
@@ -324,10 +355,20 @@ fun ChessMindApp(vm: MainViewModel = viewModel()) {
             }
         )
     }
+    val circle1Alpha by animateFloatAsState(
+        targetValue = if (state.settings.darkMode) .025f else .56f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "c1Alpha",
+    )
+    val circle2Alpha by animateFloatAsState(
+        targetValue = if (state.settings.darkMode) .09f else .045f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "c2Alpha",
+    )
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Color.White.copy(if (state.settings.darkMode) .025f else .56f), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
-            drawCircle(BrandBlue.copy(if (state.settings.darkMode) .09f else .045f), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
+            drawCircle(Color.White.copy(circle1Alpha), radius = size.width * .72f, center = Offset(size.width * .13f, -size.height * .08f))
+            drawCircle(BrandBlue.copy(circle2Alpha), radius = size.width * .64f, center = Offset(size.width * .98f, size.height * .42f))
         }
         Scaffold(
             containerColor = Color.Transparent,
@@ -446,8 +487,13 @@ private fun HomeScreen(vm: MainViewModel) {
                 IconButton(onClick = { vm.navigate(AppScreen.PROFILE) }, modifier = Modifier.size(52.dp)) {
                     UserAvatar(vm.state.profile.imageUri, vm.state.profile.name, Modifier.size(48.dp))
                 }
-                Spacer(Modifier.width(40.dp))
-                IconButton(onClick = { vm.navigate(AppScreen.SETTINGS) }) { Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Ink) }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeToggleButton(
+                        darkMode = vm.state.settings.darkMode,
+                        onToggle = { vm.updateSettings(vm.state.settings.copy(darkMode = !vm.state.settings.darkMode)) },
+                    )
+                    IconButton(onClick = { vm.navigate(AppScreen.SETTINGS) }) { Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Ink) }
+                }
             }
         }
         item {
@@ -1464,7 +1510,7 @@ private fun ChessBoard(
                             contentAlignment = Alignment.Center,
                         ) {
                             position[square]?.let { piece ->
-                                ChessPiece(piece, pieceDepth, Modifier.fillMaxSize().padding(4.dp), pieceStyle)
+                                ChessPiece(piece, pieceDepth, Modifier.fillMaxSize().padding(2.5.dp), pieceStyle)
                             }
                             if (isHint) Box(Modifier.size(if (position[square] == null) 10.dp else 36.dp).clip(CircleShape).background(Espresso.copy(if (position[square] == null) .48f else .08f)).then(if (position[square] == null) Modifier else Modifier.border(3.dp, Espresso.copy(.52f), CircleShape)))
                             if (showCoordinates && displayFile == 0) Text(
@@ -1497,50 +1543,51 @@ private fun pieceDrawable(style: Int, piece: Piece): Int {
     val key = "${if (piece.side == Side.WHITE) 'w' else 'b'}${piece.type.fen.lowercaseChar()}"
     return when (style.coerceIn(0, 4)) {
         1 -> when (key) {
-            "wk" -> R.drawable.piece_fantasy_wk; "wq" -> R.drawable.piece_fantasy_wq
-            "wr" -> R.drawable.piece_fantasy_wr; "wb" -> R.drawable.piece_fantasy_wb
-            "wn" -> R.drawable.piece_fantasy_wn; "wp" -> R.drawable.piece_fantasy_wp
-            "bk" -> R.drawable.piece_fantasy_bk; "bq" -> R.drawable.piece_fantasy_bq
-            "br" -> R.drawable.piece_fantasy_br; "bb" -> R.drawable.piece_fantasy_bb
-            "bn" -> R.drawable.piece_fantasy_bn; else -> R.drawable.piece_fantasy_bp
+            "wk" -> R.drawable.piece_california_wk; "wq" -> R.drawable.piece_california_wq
+            "wr" -> R.drawable.piece_california_wr; "wb" -> R.drawable.piece_california_wb
+            "wn" -> R.drawable.piece_california_wn; "wp" -> R.drawable.piece_california_wp
+            "bk" -> R.drawable.piece_california_bk; "bq" -> R.drawable.piece_california_bq
+            "br" -> R.drawable.piece_california_br; "bb" -> R.drawable.piece_california_bb
+            "bn" -> R.drawable.piece_california_bn; else -> R.drawable.piece_california_bp
         }
         2 -> when (key) {
-            "wk" -> R.drawable.piece_spatial_wk; "wq" -> R.drawable.piece_spatial_wq
-            "wr" -> R.drawable.piece_spatial_wr; "wb" -> R.drawable.piece_spatial_wb
-            "wn" -> R.drawable.piece_spatial_wn; "wp" -> R.drawable.piece_spatial_wp
-            "bk" -> R.drawable.piece_spatial_bk; "bq" -> R.drawable.piece_spatial_bq
-            "br" -> R.drawable.piece_spatial_br; "bb" -> R.drawable.piece_spatial_bb
-            "bn" -> R.drawable.piece_spatial_bn; else -> R.drawable.piece_spatial_bp
+            "wk" -> R.drawable.piece_merida_wk; "wq" -> R.drawable.piece_merida_wq
+            "wr" -> R.drawable.piece_merida_wr; "wb" -> R.drawable.piece_merida_wb
+            "wn" -> R.drawable.piece_merida_wn; "wp" -> R.drawable.piece_merida_wp
+            "bk" -> R.drawable.piece_merida_bk; "bq" -> R.drawable.piece_merida_bq
+            "br" -> R.drawable.piece_merida_br; "bb" -> R.drawable.piece_merida_bb
+            "bn" -> R.drawable.piece_merida_bn; else -> R.drawable.piece_merida_bp
         }
         3 -> when (key) {
-            "wk" -> R.drawable.piece_celtic_wk; "wq" -> R.drawable.piece_celtic_wq
-            "wr" -> R.drawable.piece_celtic_wr; "wb" -> R.drawable.piece_celtic_wb
-            "wn" -> R.drawable.piece_celtic_wn; "wp" -> R.drawable.piece_celtic_wp
-            "bk" -> R.drawable.piece_celtic_bk; "bq" -> R.drawable.piece_celtic_bq
-            "br" -> R.drawable.piece_celtic_br; "bb" -> R.drawable.piece_celtic_bb
-            "bn" -> R.drawable.piece_celtic_bn; else -> R.drawable.piece_celtic_bp
+            "wk" -> R.drawable.piece_staunty_wk; "wq" -> R.drawable.piece_staunty_wq
+            "wr" -> R.drawable.piece_staunty_wr; "wb" -> R.drawable.piece_staunty_wb
+            "wn" -> R.drawable.piece_staunty_wn; "wp" -> R.drawable.piece_staunty_wp
+            "bk" -> R.drawable.piece_staunty_bk; "bq" -> R.drawable.piece_staunty_bq
+            "br" -> R.drawable.piece_staunty_br; "bb" -> R.drawable.piece_staunty_bb
+            "bn" -> R.drawable.piece_staunty_bn; else -> R.drawable.piece_staunty_bp
         }
         4 -> when (key) {
-            "wk" -> R.drawable.piece_chessnut_wk; "wq" -> R.drawable.piece_chessnut_wq
-            "wr" -> R.drawable.piece_chessnut_wr; "wb" -> R.drawable.piece_chessnut_wb
-            "wn" -> R.drawable.piece_chessnut_wn; "wp" -> R.drawable.piece_chessnut_wp
-            "bk" -> R.drawable.piece_chessnut_bk; "bq" -> R.drawable.piece_chessnut_bq
-            "br" -> R.drawable.piece_chessnut_br; "bb" -> R.drawable.piece_chessnut_bb
-            "bn" -> R.drawable.piece_chessnut_bn; else -> R.drawable.piece_chessnut_bp
+            "wk" -> R.drawable.piece_cardinal_wk; "wq" -> R.drawable.piece_cardinal_wq
+            "wr" -> R.drawable.piece_cardinal_wr; "wb" -> R.drawable.piece_cardinal_wb
+            "wn" -> R.drawable.piece_cardinal_wn; "wp" -> R.drawable.piece_cardinal_wp
+            "bk" -> R.drawable.piece_cardinal_bk; "bq" -> R.drawable.piece_cardinal_bq
+            "br" -> R.drawable.piece_cardinal_br; "bb" -> R.drawable.piece_cardinal_bb
+            "bn" -> R.drawable.piece_cardinal_bn; else -> R.drawable.piece_cardinal_bp
         }
         else -> when (key) {
-            "wk" -> R.drawable.piece_rhosgfx_wk; "wq" -> R.drawable.piece_rhosgfx_wq
-            "wr" -> R.drawable.piece_rhosgfx_wr; "wb" -> R.drawable.piece_rhosgfx_wb
-            "wn" -> R.drawable.piece_rhosgfx_wn; "wp" -> R.drawable.piece_rhosgfx_wp
-            "bk" -> R.drawable.piece_rhosgfx_bk; "bq" -> R.drawable.piece_rhosgfx_bq
-            "br" -> R.drawable.piece_rhosgfx_br; "bb" -> R.drawable.piece_rhosgfx_bb
-            "bn" -> R.drawable.piece_rhosgfx_bn; else -> R.drawable.piece_rhosgfx_bp
+            "wk" -> R.drawable.piece_cburnett_wk; "wq" -> R.drawable.piece_cburnett_wq
+            "wr" -> R.drawable.piece_cburnett_wr; "wb" -> R.drawable.piece_cburnett_wb
+            "wn" -> R.drawable.piece_cburnett_wn; "wp" -> R.drawable.piece_cburnett_wp
+            "bk" -> R.drawable.piece_cburnett_bk; "bq" -> R.drawable.piece_cburnett_bq
+            "br" -> R.drawable.piece_cburnett_br; "bb" -> R.drawable.piece_cburnett_bb
+            "bn" -> R.drawable.piece_cburnett_bn; else -> R.drawable.piece_cburnett_bp
         }
     }
 }
 
 @Composable
 private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate: (app.chessmind.data.UserSettings) -> Unit) {
+    val pieceSetNames = listOf("Classic", "California", "Merida", "Staunton", "Cardinal")
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = SurfaceDark)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1567,13 +1614,21 @@ private fun BoardLookPicker(settings: app.chessmind.data.UserSettings, onUpdate:
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 repeat(5) { index ->
                     val isSelected = settings.pieceStyle == index
-                    Box(
-                        Modifier.weight(1f).height(39.dp).clip(RoundedCornerShape(11.dp))
-                            .background(if (isSelected) Accent.copy(.14f) else Color.Transparent)
-                            .then(if (isSelected) Modifier.border(1.5.dp, Accent, RoundedCornerShape(11.dp)) else Modifier)
-                            .clickable { onUpdate(settings.copy(pieceStyle = index)) },
-                        contentAlignment = Alignment.Center,
-                    ) { ChessPiece(Piece(PieceType.KNIGHT, if (index % 2 == 0) Side.WHITE else Side.BLACK), false, Modifier.size(34.dp), index) }
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) Accent.copy(.14f) else Color.Transparent,
+                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) Accent else Color.White.copy(.08f)),
+                        modifier = Modifier.weight(1f).height(44.dp).clickable { onUpdate(settings.copy(pieceStyle = index)) },
+                    ) {
+                        Column(
+                            Modifier.fillMaxSize().padding(1.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            ChessPiece(Piece(PieceType.KNIGHT, Side.WHITE), false, Modifier.size(24.dp), index)
+                            Text(pieceSetNames[index], fontSize = 8.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) Accent else Muted, maxLines = 1)
+                        }
+                    }
                 }
                 }
             }
@@ -2053,7 +2108,14 @@ private fun PracticeScreen(vm: MainViewModel) {
         contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { ScreenHeader("Daily training", onBack = { vm.navigate(AppScreen.HOME) }) }
+        item {
+            ScreenHeader(
+                "Daily training",
+                onBack = { vm.navigate(AppScreen.HOME) },
+                onToggleTheme = { vm.updateSettings(state.settings.copy(darkMode = !state.settings.darkMode)) },
+                darkMode = state.settings.darkMode,
+            )
+        }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -2117,6 +2179,7 @@ private fun StatPill(label: String, value: String, modifier: Modifier) {
 
 @Composable
 private fun HistoryScreen(vm: MainViewModel) {
+    val settings = vm.state.settings
     val analyses = vm.state.history
     val matches = vm.state.matchHistory
     val saved = vm.state.savedPositions
@@ -2133,6 +2196,8 @@ private fun HistoryScreen(vm: MainViewModel) {
                 "History & library",
                 onBack = { vm.navigate(AppScreen.HOME) },
                 trailing = "${matches.size + analyses.size + saved.size} TOTAL",
+                onToggleTheme = { vm.updateSettings(settings.copy(darkMode = !settings.darkMode)) },
+                darkMode = settings.darkMode,
             )
         }
         item {
@@ -2280,7 +2345,14 @@ private fun SettingsScreen(vm: MainViewModel) {
         }
     }
     LazyColumn(contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 0.dp, bottom = 36.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { ScreenHeader("Settings", onBack = { vm.navigate(AppScreen.HOME) }) }
+        item {
+            ScreenHeader(
+                "Settings",
+                onBack = { vm.navigate(AppScreen.HOME) },
+                onToggleTheme = { vm.updateSettings(settings.copy(darkMode = !settings.darkMode)) },
+                darkMode = settings.darkMode,
+            )
+        }
         item {
             Card(
                 shape = RoundedCornerShape(28.dp),
@@ -2302,11 +2374,7 @@ private fun SettingsScreen(vm: MainViewModel) {
         }
         item {
             SettingsSection("Appearance", Icons.Rounded.Palette) {
-                SettingChoice("Theme", Icons.Rounded.LightMode, if (settings.darkMode) "Dark" else "Light") {
-                    ChoicePill("Light", !settings.darkMode) { vm.updateSettings(settings.copy(darkMode = false)) }
-                    ChoicePill("Dark", settings.darkMode) { vm.updateSettings(settings.copy(darkMode = true)) }
-                }
-                SettingInfo(Icons.Rounded.GridOn, "Board & pieces", "Four board palettes and five filled piece sets")
+                SettingInfo(Icons.Rounded.GridOn, "Board & pieces", "Four board palettes and five premium piece sets")
                 BoardLookPicker(settings, vm::updateSettings)
                 SettingToggle(Icons.Rounded.AutoAwesome, "Animations", "Smooth and responsive", settings.animations) { vm.updateSettings(settings.copy(animations = it)) }
             }
@@ -2516,11 +2584,67 @@ private fun SettingInfo(icon: androidx.compose.ui.graphics.vector.ImageVector, t
 }
 
 @Composable
-private fun ScreenHeader(title: String, onBack: () -> Unit, trailing: String? = null) {
+private fun ThemeToggleButton(
+    darkMode: Boolean,
+    modifier: Modifier = Modifier,
+    onToggle: () -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    val rotation by animateFloatAsState(
+        targetValue = if (darkMode) 180f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "themeRotation",
+    )
+    val buttonBg by animateColorAsState(
+        targetValue = if (darkMode) Color(0xFF20344C) else Color(0xFFDCEBFA),
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "themeBtnBg",
+    )
+    val iconTint by animateColorAsState(
+        targetValue = if (darkMode) Sunny else BrandBlue,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "themeBtnIcon",
+    )
+
+    Surface(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onToggle()
+        },
+        shape = CircleShape,
+        color = buttonBg,
+        border = BorderStroke(1.dp, if (darkMode) Color.White.copy(.14f) else BrandBlue.copy(.22f)),
+        shadowElevation = 3.dp,
+        modifier = modifier.size(42.dp),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = if (darkMode) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                contentDescription = if (darkMode) "Switch to Light Mode" else "Switch to Dark Mode",
+                tint = iconTint,
+                modifier = Modifier
+                    .size(22.dp)
+                    .graphicsLayer(rotationZ = rotation),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScreenHeader(
+    title: String,
+    onBack: () -> Unit,
+    trailing: String? = null,
+    onToggleTheme: (() -> Unit)? = null,
+    darkMode: Boolean = false,
+) {
     Row(Modifier.fillMaxWidth().height(68.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") }
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        if (trailing != null) Text(trailing.uppercase(), style = MaterialTheme.typography.labelMedium, color = Accent)
+        if (trailing != null) Text(trailing.uppercase(), style = MaterialTheme.typography.labelMedium, color = Accent, modifier = Modifier.padding(end = 8.dp))
+        if (onToggleTheme != null) {
+            ThemeToggleButton(darkMode = darkMode, onToggle = onToggleTheme)
+        }
     }
 }
 
